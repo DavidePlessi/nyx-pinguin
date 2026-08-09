@@ -139,6 +139,15 @@ const saveConfig = async () => {
 
 onMounted(() => {
   checkAuthUrl()
+  
+  const urlParams = new URLSearchParams(window.location.search)
+  const guildParam = urlParams.get('guild') || urlParams.get('id')
+  if (guildParam) {
+    guildId.value = guildParam
+    if (sessionToken.value) {
+      loadConfig()
+    }
+  }
 })
 </script>
 
