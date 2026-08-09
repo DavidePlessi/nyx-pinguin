@@ -105,4 +105,4 @@ npm start
 ## 📝 License
 
 Proprietary / Internal Use. 
-Designed and maintained for Nyx Pinguin.
+Designed and maintained for [Fiveamtech](https://fiveamtech.it).
