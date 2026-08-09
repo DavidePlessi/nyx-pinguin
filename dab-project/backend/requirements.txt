@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+py-cord[voice]
+motor
+beanie
+python-dotenv
+httpx
+pydantic-settings
+davey
+pynacl
+pyjwt

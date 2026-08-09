@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: pinguin_api
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    # Se il frontend è servito da fastapi, non serve che MONGO_URI cambi per il frontend, 
+    # ma deve puntare al mongo reale specificato in .env
+
+  bot:
+    build:
+      context: ./bot-node
+      dockerfile: Dockerfile
+    container_name: pinguin_bot
+    restart: always
+    env_file:
+      - .env
+    # Il bot ha bisogno solo di dialogare con MongoDB e Discord
+    depends_on:
+      - api

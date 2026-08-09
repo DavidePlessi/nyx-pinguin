@@ -1,0 +1,18 @@
+{
+  "name": "dab-bot-node",
+  "version": "1.0.0",
+  "description": "Discord Audio Broadcaster - Node.js Engine",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.2",
+    "@discordjs/voice": "^0.19.0",
+    "@snazzah/davey": "^0.1.12",
+    "sodium-native": "^4.3.1",
+    "mongodb": "^6.8.0",
+    "dotenv": "^16.4.5"
+  }
+}

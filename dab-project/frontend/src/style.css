@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cyber-bg: #090910;
+  --color-cyber-panel: rgba(16, 16, 32, 0.7);
+  --color-cyber-cyan: #00f0ff;
+  --color-cyber-cyan-dim: rgba(0, 240, 255, 0.2);
+  --color-cyber-purple: #b026ff;
+  --color-cyber-purple-dim: rgba(176, 38, 255, 0.2);
+  --color-cyber-pink: #ff007f;
+  
+  --font-orbitron: 'Orbitron', sans-serif;
+  --font-rajdhani: 'Rajdhani', sans-serif;
+  --font-inter: 'Inter', sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-cyber-bg text-gray-200 font-inter min-h-screen overflow-x-hidden;
+    background-image: 
+      radial-gradient(circle at 15% 50%, var(--color-cyber-purple-dim), transparent 25%),
+      radial-gradient(circle at 85% 30%, var(--color-cyber-cyan-dim), transparent 25%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-cyber-panel backdrop-blur-md border border-gray-800 rounded-xl shadow-2xl;
+  }
+  
+  .glass-panel:hover {
+    @apply border-cyber-purple/50;
+    box-shadow: 0 0 15px var(--color-cyber-purple-dim);
+  }
+
+  .neon-text-cyan {
+    color: var(--color-cyber-cyan);
+    text-shadow: 0 0 5px var(--color-cyber-cyan), 0 0 10px var(--color-cyber-cyan);
+  }
+
+  .neon-text-purple {
+    color: var(--color-cyber-purple);
+    text-shadow: 0 0 5px var(--color-cyber-purple), 0 0 10px var(--color-cyber-purple);
+  }
+
+  .neon-border-cyan {
+    border-color: var(--color-cyber-cyan);
+    box-shadow: 0 0 10px var(--color-cyber-cyan-dim), inset 0 0 10px var(--color-cyber-cyan-dim);
+  }
+
+  .neon-btn-primary {
+    @apply relative overflow-hidden px-6 py-3 font-rajdhani font-bold text-lg uppercase tracking-wider text-white bg-gradient-to-r from-cyber-purple to-cyber-pink rounded-md transition-all duration-300;
+    box-shadow: 0 0 10px var(--color-cyber-purple-dim);
+  }
+
+  .neon-btn-primary:hover {
+    box-shadow: 0 0 20px var(--color-cyber-purple), 0 0 40px var(--color-cyber-pink);
+    transform: translateY(-2px);
+  }
+  
+  .neon-input {
+    @apply w-full bg-black/50 border border-gray-700 rounded-md px-4 py-2 text-cyber-cyan font-rajdhani text-lg focus:outline-none focus:border-cyber-cyan transition-colors duration-300;
+  }
+  
+  .neon-input:focus {
+    box-shadow: 0 0 10px var(--color-cyber-cyan-dim);
+  }
+}
