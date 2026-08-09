@@ -14,7 +14,7 @@ const AUX_TOKENS = (process.env.DISCORD_AUX_TOKENS || '').split(',').map(t => t.
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 
 // Clients
-const primaryBot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages] });
+const primaryBot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers] });
 const auxBots = AUX_TOKENS.map(() => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] }));
 
 let dbClient;
