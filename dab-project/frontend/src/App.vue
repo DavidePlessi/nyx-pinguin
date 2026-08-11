@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import CyberModal from './components/CyberModal.vue'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || ''
 const sessionToken = ref<string | null>(localStorage.getItem('dab_session_token'))
@@ -17,6 +18,36 @@ const availableRoles = ref<any[]>([])
 const logs = ref<any[]>([])
 const showLogs = ref(false)
 let logsInterval: any = null
+
+const modalState = ref({
+  show: false,
+  title: 'SYSTEM ALERT',
+  message: '',
+  isConfirm: false,
+  resolve: null as ((value: boolean) => void) | null
+})
+
+const showAlert = (message: string, title = 'SYSTEM ALERT') => {
+  return new Promise<boolean>((resolve) => {
+    modalState.value = { show: true, title, message, isConfirm: false, resolve }
+  })
+}
+
+const showConfirm = (message: string, title = 'CONFIRM ACTION') => {
+  return new Promise<boolean>((resolve) => {
+    modalState.value = { show: true, title, message, isConfirm: true, resolve }
+  })
+}
+
+const handleModalConfirm = () => {
+  if (modalState.value.resolve) modalState.value.resolve(true)
+  modalState.value.show = false
+}
+
+const handleModalCancel = () => {
+  if (modalState.value.resolve) modalState.value.resolve(false)
+  modalState.value.show = false
+}
 
 const checkAuthUrl = () => {
   const urlParams = new URLSearchParams(window.location.search)
@@ -129,7 +160,7 @@ const saveConfig = async () => {
       if (res.status === 401 || res.status === 403) logout()
       throw new Error("Salvataggio fallito")
     }
-    alert("✅ Configurazione salvata nel mainframe!")
+    await showAlert("Configurazione salvata nel mainframe!", "SUCCESS")
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -138,7 +169,7 @@ const saveConfig = async () => {
 }
 
 const restartSystem = async () => {
-  if (!confirm("Sei sicuro di voler riavviare il bot e le API? Questo comporterà una breve interruzione del servizio.")) return
+  if (!(await showConfirm("Sei sicuro di voler riavviare il bot e le API? Questo comporterà una breve interruzione del servizio.", "SYSTEM REBOOT"))) return
   
   isLoading.value = true
   error.value = ''
@@ -153,7 +184,7 @@ const restartSystem = async () => {
       if (res.status === 401 || res.status === 403) logout()
       throw new Error("Riavvio fallito")
     }
-    alert("🔄 Riavvio in corso. Ricarica la pagina tra qualche secondo.")
+    await showAlert("Riavvio in corso. Ricarica la pagina tra qualche secondo.", "REBOOTING")
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -177,6 +208,14 @@ onMounted(() => {
 
 <template>
   <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <CyberModal 
+      :show="modalState.show" 
+      :title="modalState.title" 
+      :message="modalState.message" 
+      :isConfirm="modalState.isConfirm"
+      @confirm="handleModalConfirm"
+      @cancel="handleModalCancel"
+    />
     
     <!-- Header -->
     <header class="text-center mb-12">
