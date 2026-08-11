@@ -14,6 +14,7 @@ from typing import List, Optional
 from fastapi import BackgroundTasks
 import asyncio
 import os
+import httpx
 from app.core.ipc import publish_message
 
 class ConfigUpdateSchema(BaseModel):
