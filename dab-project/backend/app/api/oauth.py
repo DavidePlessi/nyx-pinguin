@@ -9,11 +9,13 @@ router = APIRouter()
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
 @router.get("/login")
-async def login():
+async def login(state: str = None):
     url = (
         f"https://discord.com/oauth2/authorize?client_id={settings.DISCORD_CLIENT_ID}"
         f"&redirect_uri={settings.DISCORD_REDIRECT_URI}&response_type=code&scope=identify%20guilds"
     )
+    if state:
+        url += f"&state={state}"
     return RedirectResponse(url)
 
 import jwt
@@ -21,7 +23,7 @@ from datetime import datetime, timedelta
 from app.models.models import AdminUser
 
 @router.get("/callback")
-async def callback(code: str):
+async def callback(code: str, state: str = None):
     data = {
         "client_id": settings.DISCORD_CLIENT_ID,
         "client_secret": settings.DISCORD_CLIENT_SECRET,
@@ -67,7 +69,12 @@ async def callback(code: str):
         # Redirigi al frontend in modo relativo (funziona sia in prod unificato che in dev proxy)
         # Se c'è una var d'ambiente FRONTEND_URL usala, altrimenti usa root
         frontend_url = os.getenv("FRONTEND_URL", "")
-        return RedirectResponse(f"{frontend_url}/auth/success?token={session_token}")
+        
+        redirect_url = f"{frontend_url}/login?token={session_token}"
+        if state:
+            redirect_url += f"&guild={state}"
+            
+        return RedirectResponse(redirect_url)
 
 # Dependency to verify token
 from fastapi.security import OAuth2PasswordBearer
