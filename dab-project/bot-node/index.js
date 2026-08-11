@@ -188,6 +188,11 @@ async function handleIpc(data) {
         audioPlayer.stop();
         console.log("Stopped broadcast.");
     }
+    
+    if (data.action === "system_restart") {
+        console.log("[SYSTEM] Ricevuto comando di riavvio dal Mainframe. Riavvio in corso...");
+        process.exit(0);
+    }
 }
 
 // Timeout management

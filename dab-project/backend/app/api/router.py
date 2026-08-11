@@ -11,7 +11,10 @@ from app.core.config import settings
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-import httpx
+from fastapi import BackgroundTasks
+import asyncio
+import os
+from app.core.ipc import publish_message
 
 class ConfigUpdateSchema(BaseModel):
     guild_id: str
@@ -70,3 +73,16 @@ async def get_logs(admin: AdminUser = Depends(get_current_admin)):
     logs = await BotLog.find_all().sort("-timestamp").limit(100).to_list()
     logs.reverse() # return chronological
     return [{"timestamp": log.timestamp.isoformat(), "level": log.level, "message": log.message} for log in logs]
+
+async def restart_docker_containers():
+    # Invia il comando di riavvio al bot tramite IPC
+    await publish_message("dab_updates", {"action": "system_restart"})
+    # Attende 1.5 secondi per permettere alla risposta HTTP di arrivare al client e all'IPC di essere elaborato
+    await asyncio.sleep(1.5)
+    # Killa l'API. Docker (con restart: always) si occuperà di riavviarlo
+    os._exit(0)
+
+@api_router.post("/system/restart")
+async def restart_system(background_tasks: BackgroundTasks, admin: AdminUser = Depends(get_current_admin)):
+    background_tasks.add_task(restart_docker_containers)
+    return {"status": "success", "message": "Restarting bot and api..."}
