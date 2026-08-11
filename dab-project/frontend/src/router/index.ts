@@ -26,14 +26,12 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const isAuthenticated = !!localStorage.getItem('dab_session_token')
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     // Redirect to login but keep query params (e.g. guild)
-    next({ name: 'Login', query: to.query })
-  } else {
-    next()
+    return { name: 'Login', query: to.query }
   }
 })
 
