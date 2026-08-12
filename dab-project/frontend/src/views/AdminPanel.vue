@@ -11,7 +11,7 @@ const router = useRouter()
 const activeTab = ref('overview') // 'overview', 'users', 'system'
 
 const isLoading = ref(false)
-const error = ref('')
+//const error = ref('')
 
 const stats = ref({
   total_users: 0,
