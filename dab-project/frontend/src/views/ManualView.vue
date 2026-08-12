@@ -74,7 +74,18 @@ const goBack = () => {
       </section>
 
       <section>
-        <h3 class="text-2xl font-bold text-cyber-purple mb-4">3. Funzioni dell'Interfaccia</h3>
+        <h3 class="text-2xl font-bold text-cyber-purple mb-4">3. Come recuperare il Channel ID (ID del Canale)</h3>
+        <p class="mb-4">Per inviare l'audio in canali di <strong>altri server</strong>, ti servirà l'ID di quel canale vocale (Channel ID).</p>
+        <ol class="list-decimal pl-6 space-y-2">
+          <li>Assicurati di aver attivato la <strong>Modalità Sviluppatore</strong> come spiegato nel punto precedente.</li>
+          <li>Entra nel server esterno dove vuoi trasmettere.</li>
+          <li>Fai clic destro sul nome del canale vocale desiderato e seleziona <strong>Copia ID canale</strong> (o Copia ID).</li>
+          <li>Incolla l'ID appena copiato nel campo "External Channels (ID)" della Dashboard.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h3 class="text-2xl font-bold text-cyber-purple mb-4">4. Funzioni dell'Interfaccia</h3>
         <ul class="space-y-4">
           <li>
             <strong class="text-cyber-cyan">Guild ID (Server) & SCAN:</strong> Inserisci l'ID del server e clicca su SCAN per caricare tutti i canali vocali e i ruoli presenti nel server.
@@ -86,7 +97,10 @@ const goBack = () => {
             <strong class="text-cyber-cyan">Authorized Role ID (Opzionale):</strong> Seleziona un ruolo. Solo gli utenti in possesso di questo ruolo verranno trasmessi. Se lasciato vuoto, l'audio di chiunque nel canale sorgente verrà catturato.
           </li>
           <li>
-            <strong class="text-cyber-cyan">Destination Channels:</strong> Seleziona uno o più canali di destinazione. I bot Speaker si connetteranno a questi canali e trasmetteranno l'audio catturato dal Listener. (Seleziona le checkbox corrispondenti)
+            <strong class="text-cyber-cyan">Destination Channels:</strong> Seleziona uno o più canali di destinazione all'interno del server corrente. I bot Speaker si connetteranno a questi canali e trasmetteranno l'audio catturato dal Listener.
+          </li>
+          <li>
+            <strong class="text-cyber-cyan">External Channels (Cross-Server Broadcast):</strong> Se vuoi trasmettere l'audio anche in altri server, puoi incollare in questo campo di testo gli ID dei canali vocali esterni (separati da a capo o virgola). Assicurati che i bot "Speaker" siano stati invitati in quei server!
           </li>
           <li>
             <strong class="text-cyber-cyan">Abilita Broadcasting:</strong> Interruttore principale per attivare o disattivare l'intero sistema di broadcasting per il server specificato.
@@ -104,7 +118,7 @@ const goBack = () => {
       </section>
 
       <section>
-        <h3 class="text-2xl font-bold text-cyber-purple mb-4">4. Comandi Discord (Slash Commands)</h3>
+        <h3 class="text-2xl font-bold text-cyber-purple mb-4">5. Comandi Discord (Slash Commands)</h3>
         <p class="mb-4">Una volta configurato e attivato il sistema tramite questa interfaccia, puoi controllare la trasmissione direttamente da Discord:</p>
         <ul class="space-y-4">
           <li class="bg-black/20 p-4 rounded border border-gray-800">

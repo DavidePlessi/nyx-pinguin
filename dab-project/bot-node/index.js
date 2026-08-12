@@ -25,6 +25,8 @@ let audioPlayer = createAudioPlayer({
     }
 });
 
+const activeBroadcasts = new Map(); // Traccia: sourceGuildId -> [{botId, targetGuildId}]
+
 // Registra i comandi Slash
 async function registerCommands() {
     const commands = [
@@ -85,7 +87,9 @@ async function handleIpc(data) {
     if (data.action === "start_broadcast") {
         const guildId = data.guild_id;
         const sourceId = data.source_channel_id;
-        const destIds = data.dest_channels;
+        const destIds = data.dest_channels || [];
+        const externalDestIds = data.external_dest_channels || [];
+        const allDestIds = [...destIds, ...externalDestIds];
         const sourceRoleId = data.source_role_id;
 
         // 1. Primary Bot Joins
@@ -150,28 +154,40 @@ async function handleIpc(data) {
 
         // 2. Aux Bots Join
         const availableBots = [...auxBots];
-        for (const destId of destIds) {
+        
+        if (!activeBroadcasts.has(guildId)) {
+            activeBroadcasts.set(guildId, []);
+        }
+        const currentBroadcast = activeBroadcasts.get(guildId);
+
+        for (const destId of allDestIds) {
             if (availableBots.length === 0) {
                 console.log("Not enough aux bots!");
                 break;
             }
             const auxBot = availableBots.shift();
-            const destGuild = auxBot.guilds.cache.get(guildId);
-            const destChannel = destGuild?.channels.cache.get(destId);
+            const destChannel = auxBot.channels.cache.get(destId);
 
-            if (destChannel) {
-                let auxConn = getVoiceConnection(guildId, auxBot.user.id); // For the specific bot
+            if (destChannel && destChannel.isVoiceBased()) {
+                const targetGuildId = destChannel.guild.id;
+                let auxConn = getVoiceConnection(targetGuildId, auxBot.user.id);
                 if (auxConn) auxConn.destroy();
 
                 const auxConnection = joinVoiceChannel({
                     channelId: destId,
-                    guildId: guildId,
-                    adapterCreator: destGuild.voiceAdapterCreator,
+                    guildId: targetGuildId,
+                    adapterCreator: destChannel.guild.voiceAdapterCreator,
                     group: auxBot.user.id
                 });
                 
                 auxConnection.subscribe(audioPlayer);
-                console.log(`Aux bot joined ${destChannel.name} and is listening to player.`);
+                console.log(`Aux bot joined ${destChannel.name} in server ${destChannel.guild.name} and is listening to player.`);
+                
+                currentBroadcast.push({ botId: auxBot.user.id, targetGuildId });
+            } else {
+                console.log(`Channel ${destId} not found in cache for bot ${auxBot.user.tag}`);
+                // rimettiamo il bot disponibile per un altro canale
+                availableBots.unshift(auxBot);
             }
         }
     }
@@ -181,9 +197,19 @@ async function handleIpc(data) {
         const conn = getVoiceConnection(guildId);
         if (conn) conn.destroy();
         
-        for (const bot of auxBots) {
-            const auxConn = getVoiceConnection(guildId, bot.user.id);
-            if (auxConn) auxConn.destroy();
+        const currentBroadcast = activeBroadcasts.get(guildId);
+        if (currentBroadcast) {
+            for (const { botId, targetGuildId } of currentBroadcast) {
+                const auxConn = getVoiceConnection(targetGuildId, botId);
+                if (auxConn) auxConn.destroy();
+            }
+            activeBroadcasts.delete(guildId);
+        } else {
+            // fallback
+            for (const bot of auxBots) {
+                const auxConn = getVoiceConnection(guildId, bot.user.id);
+                if (auxConn) auxConn.destroy();
+            }
         }
         audioPlayer.stop();
         console.log("Stopped broadcast.");

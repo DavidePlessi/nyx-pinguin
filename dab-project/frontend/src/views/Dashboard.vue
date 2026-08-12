@@ -15,6 +15,7 @@ const guildId = ref('')
 const sourceChannelId = ref('')
 const sourceRoleId = ref('')
 const destChannels = ref<string[]>([])
+const externalDestChannelsText = ref('')
 const isActive = ref(false)
 
 const availableChannels = ref<any[]>([])
@@ -94,6 +95,7 @@ const loadConfig = async () => {
     sourceChannelId.value = data.source_channel_id || ''
     sourceRoleId.value = data.source_role_id || ''
     destChannels.value = data.dest_channels || []
+    externalDestChannelsText.value = (data.external_dest_channels || []).join('\n')
     isActive.value = data.is_active || false
 
     await fetchDiscordData()
@@ -136,11 +138,14 @@ const saveConfig = async () => {
   isLoading.value = true
   error.value = ''
   
+  const extList = externalDestChannelsText.value.split(/[\n,]+/).map(s => s.trim()).filter(s => s)
+
   const payload = {
     guild_id: guildId.value,
     source_channel_id: sourceChannelId.value,
     source_role_id: sourceRoleId.value || null,
     dest_channels: destChannels.value,
+    external_dest_channels: extList,
     is_active: isActive.value
   }
 
@@ -273,8 +278,9 @@ onUnmounted(() => {
               Esegui SCAN per caricare i canali
             </div>
           </div>
-          <p class="text-xs text-gray-500 mt-1 font-mono">I canali in cui i cloni trasmetteranno l'audio.</p>
+          <p class="text-xs text-gray-500 mt-1 font-mono">I canali in cui i cloni trasmetteranno l'audio all'interno di questo server.</p>
         </div>
+
 
         <div class="flex items-center gap-3 pt-2">
           <input v-model="isActive" type="checkbox" id="isActive" class="w-5 h-5 accent-cyber-cyan bg-gray-900 border-gray-700 rounded">
@@ -282,6 +288,13 @@ onUnmounted(() => {
         </div>
       </div>
 
+    </div>
+
+    <!-- External Destinations (Full Width) -->
+    <div class="mt-8">
+      <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">External Channels (ID)</label>
+      <textarea v-model="externalDestChannelsText" rows="3" class="neon-input bg-gray-900 w-full" placeholder="ID canali separati da a capo o virgola..."></textarea>
+      <p class="text-xs text-gray-500 mt-1 font-mono">ID dei canali situati in ALTRI server (Cross-Server Broadcast).</p>
     </div>
 
     <div class="mt-10 pt-6 border-t border-gray-800 flex justify-end">

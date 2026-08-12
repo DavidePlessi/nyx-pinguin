@@ -22,13 +22,14 @@ class ConfigUpdateSchema(BaseModel):
     source_channel_id: str
     source_role_id: Optional[str] = None
     dest_channels: List[str]
+    external_dest_channels: List[str] = []
     is_active: bool
 
 @api_router.get("/config/{guild_id}")
 async def get_config(guild_id: str, admin: AdminUser = Depends(get_current_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
-        return {"guild_id": guild_id, "is_active": False, "dest_channels": []}
+        return {"guild_id": guild_id, "is_active": False, "dest_channels": [], "external_dest_channels": []}
     return config
 
 @api_router.post("/config")
@@ -40,6 +41,7 @@ async def save_config(data: ConfigUpdateSchema, admin: AdminUser = Depends(get_c
         config.source_channel_id = data.source_channel_id
         config.source_role_id = data.source_role_id
         config.dest_channels = data.dest_channels
+        config.external_dest_channels = data.external_dest_channels
         config.is_active = data.is_active
     await config.save()
     return {"status": "success", "config": config}

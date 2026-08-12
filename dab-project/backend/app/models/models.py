@@ -7,6 +7,7 @@ class GuildConfig(Document):
     source_channel_id: Optional[str] = None
     source_role_id: Optional[str] = None
     dest_channels: List[str] = []
+    external_dest_channels: List[str] = []
     is_active: bool = False
 
     class Settings:
