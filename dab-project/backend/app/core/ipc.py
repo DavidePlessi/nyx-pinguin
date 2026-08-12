@@ -14,7 +14,6 @@ async def init_ipc():
     try:
         await db.create_collection(IPC_COLLECTION, capped=True, size=1048576) # 1MB capped
     except CollectionInvalid:
-        # Assicurati che sia capped anche se esisteva prima
         stats = await db.command("collstats", IPC_COLLECTION)
         if not stats.get("capped"):
             await db.command({"convertToCapped": IPC_COLLECTION, "size": 1048576})

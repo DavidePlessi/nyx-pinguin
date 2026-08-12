@@ -70,7 +70,6 @@ async def get_guild_roles(guild_id: str, admin: AdminUser = Depends(get_current_
 
 @api_router.get("/logs")
 async def get_logs(admin: AdminUser = Depends(get_current_admin)):
-    # Fetch the latest 100 logs
     logs = await BotLog.find_all().sort("-timestamp").limit(100).to_list()
     logs.reverse() # return chronological
     return [{"timestamp": log.timestamp.isoformat(), "level": log.level, "message": log.message} for log in logs]

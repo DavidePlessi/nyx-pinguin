@@ -56,18 +56,15 @@ async def callback(code: str, state: str = None):
         if not admin:
             raise HTTPException(status_code=403, detail="Non sei autorizzato ad accedere alla Dashboard.")
 
-        # Generate our own JWT Session Token
+        # Generate jwt
         expiration = datetime.utcnow() + timedelta(hours=24)
         jwt_payload = {
             "sub": discord_id,
             "username": user_info.get("username"),
             "exp": expiration
         }
-        # In a real app use a strong secret key, here we use DISCORD_CLIENT_SECRET as secret for simplicity
         session_token = jwt.encode(jwt_payload, settings.DISCORD_CLIENT_SECRET, algorithm="HS256")
-        
-        # Redirigi al frontend in modo relativo (funziona sia in prod unificato che in dev proxy)
-        # Se c'è una var d'ambiente FRONTEND_URL usala, altrimenti usa root
+
         frontend_url = os.getenv("FRONTEND_URL", "")
         
         redirect_url = f"{frontend_url}/login?token={session_token}"
@@ -76,7 +73,7 @@ async def callback(code: str, state: str = None):
             
         return RedirectResponse(redirect_url)
 
-# Dependency to verify token
+
 from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/oauth/login")
 
