@@ -67,9 +67,10 @@ primaryBot.on('interactionCreate', async interaction => {
             guild_id: interaction.guildId,
             source_channel_id: config.source_channel_id,
             dest_channels: config.dest_channels,
+            external_dest_channels: config.external_dest_channels,
             source_role_id: config.source_role_id
         });
-        await interaction.followUp(`🐧 **Pinguin on Duty!** Avvio del broadcasting dal canale <#${config.source_channel_id}> verso ${config.dest_channels.length} canali...`);
+        await interaction.followUp(`🐧 **Pinguin on Duty!** Avvio del broadcasting dal canale <#${config.source_channel_id}> verso ${config.dest_channels.length + (config.external_dest_channels?.length || 0)} canali...`);
     }
 
     if (interaction.commandName === 'pinguin_at_ease') {
@@ -153,41 +154,63 @@ async function handleIpc(data) {
         });
 
         // 2. Aux Bots Join
-        const availableBots = [...auxBots];
-        
         if (!activeBroadcasts.has(guildId)) {
             activeBroadcasts.set(guildId, []);
         }
         const currentBroadcast = activeBroadcasts.get(guildId);
+        const usedBotsPerGuild = new Map();
 
         for (const destId of allDestIds) {
-            if (availableBots.length === 0) {
-                console.log("Not enough aux bots!");
-                break;
-            }
-            const auxBot = availableBots.shift();
-            const destChannel = auxBot.channels.cache.get(destId);
+            let assignedBot = null;
+            let destChannel = null;
 
-            if (destChannel && destChannel.isVoiceBased()) {
+            for (const bot of auxBots) {
+                let channel = bot.channels.cache.get(destId);
+                
+                if (!channel) {
+                    try {
+                        channel = await bot.channels.fetch(destId).catch(() => null);
+                    } catch (e) {
+                        channel = null;
+                    }
+                }
+
+                if (channel && channel.isVoiceBased()) {
+                    const targetGuildId = channel.guild.id;
+                    if (!usedBotsPerGuild.has(targetGuildId)) {
+                        usedBotsPerGuild.set(targetGuildId, new Set());
+                    }
+                    
+                    const usedInThisGuild = usedBotsPerGuild.get(targetGuildId);
+                    
+                    if (!usedInThisGuild.has(bot.user.id)) {
+                        assignedBot = bot;
+                        destChannel = channel;
+                        usedInThisGuild.add(bot.user.id);
+                        break;
+                    }
+                }
+            }
+
+            if (assignedBot && destChannel) {
                 const targetGuildId = destChannel.guild.id;
-                let auxConn = getVoiceConnection(targetGuildId, auxBot.user.id);
+                
+                let auxConn = getVoiceConnection(targetGuildId, assignedBot.user.id);
                 if (auxConn) auxConn.destroy();
 
                 const auxConnection = joinVoiceChannel({
                     channelId: destId,
                     guildId: targetGuildId,
                     adapterCreator: destChannel.guild.voiceAdapterCreator,
-                    group: auxBot.user.id
+                    group: assignedBot.user.id
                 });
                 
                 auxConnection.subscribe(audioPlayer);
                 console.log(`Aux bot joined ${destChannel.name} in server ${destChannel.guild.name} and is listening to player.`);
                 
-                currentBroadcast.push({ botId: auxBot.user.id, targetGuildId });
+                currentBroadcast.push({ botId: assignedBot.user.id, targetGuildId });
             } else {
-                console.log(`Channel ${destId} not found in cache for bot ${auxBot.user.tag}`);
-                // rimettiamo il bot disponibile per un altro canale
-                availableBots.unshift(auxBot);
+                console.log(`Channel ${destId} not found or no free aux bot available for its server.`);
             }
         }
     }
