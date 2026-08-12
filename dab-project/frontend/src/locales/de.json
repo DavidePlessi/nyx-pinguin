@@ -1,0 +1,148 @@
+{
+  "app": {
+    "audioMatrix": "// AUDIO-ÜBERTRAGUNGSMATRIX",
+    "viewManual": "[ BEDIENUNGSANLEITUNG ANZEIGEN ]",
+    "poweredBy": "Powered by"
+  },
+  "login": {
+    "verifyingCredentials": "Anmeldedaten werden überprüft...",
+    "adminAccessRequired": "ADMIN-ZUGANG ERFORDERLICH",
+    "authenticate": "AUTENTIFIZIEREN"
+  },
+  "dashboard": {
+    "matrixConfiguration": "MATRIX-KONFIGURATION",
+    "logout": "Abmelden [x]",
+    "guildIdLabel": "Guild ID (Server)",
+    "guildIdPlaceholder": "Z.B. 1529123644842705018",
+    "scan": "SCANNEN",
+    "sourceChannelIdLabel": "Quellkanal-ID",
+    "selectChannel": "Kanal auswählen",
+    "authorizedRoleIdLabel": "Autorisierte Rollen-ID (Optional)",
+    "leaveEmptyForAll": "Für alle leer lassen",
+    "roleHint": "Wenn festgelegt, hört der Bot nur auf Benutzer mit dieser Rolle.",
+    "destChannelsLabel": "Zielkanäle (ID)",
+    "runScanHint": "SCANNEN ausführen, um Kanäle zu laden",
+    "destChannelsHint": "Die Kanäle, in denen Klone das Audio innerhalb dieses Servers übertragen.",
+    "enableBroadcasting": "Broadcasting auf diesem Server aktivieren",
+    "externalChannelsLabel": "Externe Kanäle (ID)",
+    "externalChannelsPlaceholder": "Kanal-IDs durch Zeilenumbruch oder Komma getrennt...",
+    "externalChannelsHint": "IDs von Kanälen, die sich auf ANDEREN Servern befinden (Cross-Server Broadcast).",
+    "uploading": "HOCHLADEN...",
+    "saveToMainframe": "IM MAINFRAME SPEICHERN",
+    "botLogsTerminal": "BOT LOGS TERMINAL",
+    "restartSystem": "SYSTEM NEUSTARTEN",
+    "noLogsAvailable": "Keine Protokolle verfügbar...",
+    "errorPrefix": "> FEHLER:",
+    "errorRequiredFields": "Guild ID und Quellkanal sind erforderlich!",
+    "errorLoading": "Ladefehler",
+    "errorSaving": "Speichern fehlgeschlagen",
+    "successSaveMessage": "Konfiguration im Mainframe gespeichert!",
+    "successTitle": "ERFOLG",
+    "restartConfirmMessage": "Sind Sie sicher, dass Sie den Bot und die APIs neu starten möchten? Dies führt zu einer kurzen Dienstunterbrechung.",
+    "systemRebootTitle": "SYSTEM NEUSTART",
+    "errorRestart": "Neustart fehlgeschlagen",
+    "restartSuccessMessage": "Neustart läuft. Laden Sie die Seite in wenigen Sekunden neu.",
+    "rebootingTitle": "NEUSTART LÄUFT"
+  },
+  "modal": {
+    "systemAlert": "SYSTEMALARM",
+    "abort": "ABBRECHEN",
+    "confirm": "BESTÄTIGEN",
+    "acknowledge": "BESTÄTIGT"
+  },
+  "manual": {
+    "manualTitle": "BEDIENUNGSANLEITUNG",
+    "print": "DRUCKEN",
+    "close": "Schließen [x]",
+    "section1": {
+      "title": "1. Wie man Bots einlädt",
+      "p1": "Damit das Broadcasting-System funktioniert, müssen Sie sowohl den \"Listener\"-Bot (der den Ton hört) als auch die \"Speaker\"-Bots (die den Ton in Zielkanälen wiedergeben) einladen.",
+      "listener": "Listener:",
+      "speaker": "Speaker",
+      "invite": "Einladen"
+    },
+    "section2": {
+      "title": "2. So erhalten Sie die Guild ID (Server-ID)",
+      "p1": "Um das System zu konfigurieren, benötigen Sie die Discord-Server-ID (Guild ID).",
+      "li1": "Öffnen Sie die <strong>Benutzereinstellungen</strong> von Discord (Zahnradsymbol unten links).",
+      "li2": "Gehen Sie zu <strong>Erweitert</strong> (unter dem Abschnitt App-Einstellungen).",
+      "li3": "Aktivieren Sie den <strong>Entwicklermodus</strong>.",
+      "li4": "Gehen Sie zurück zur Serverliste, klicken Sie mit der rechten Maustaste auf das Symbol Ihres Servers und wählen Sie <strong>Server-ID kopieren</strong> (oder ID kopieren).",
+      "li5": "Fügen Sie diese ID in das Feld \"Guild ID (Server)\" in der Web-Oberfläche ein und klicken Sie auf SCANNEN."
+    },
+    "section3": {
+      "title": "3. So erhalten Sie die Channel ID",
+      "p1": "Um Audio an Kanäle in <strong>anderen Servern</strong> zu senden, benötigen Sie die ID dieses Sprachkanals (Channel ID).",
+      "li1": "Stellen Sie sicher, dass Sie den <strong>Entwicklermodus</strong> aktiviert haben, wie im vorherigen Schritt erklärt.",
+      "li2": "Betreten Sie den externen Server, in dem Sie übertragen möchten.",
+      "li3": "Klicken Sie mit der rechten Maustaste auf den gewünschten Namen des Sprachkanals und wählen Sie <strong>Kanal-ID kopieren</strong> (oder ID kopieren).",
+      "li4": "Fügen Sie die kopierte ID in das Feld \"Externe Kanäle (ID)\" im Dashboard ein."
+    },
+    "section4": {
+      "title": "4. Schnittstellenfunktionen",
+      "guildId": "Geben Sie die Server-ID ein und klicken Sie auf SCANNEN, um alle Sprachkanäle und Rollen im Server zu laden.",
+      "sourceChannelId": "Wählen Sie den \"Quell\"-Sprachkanal aus. Der Listener-Bot stellt hier eine Verbindung her, um das Audio des Sprechers aufzunehmen.",
+      "authorizedRoleId": "Wählen Sie eine Rolle aus. Nur Benutzer mit dieser Rolle werden übertragen. Wenn Sie das Feld leer lassen, wird das Audio aller Personen im Quellkanal aufgenommen.",
+      "destChannels": "Wählen Sie einen oder mehrere Zielkanäle innerhalb des aktuellen Servers aus. Speaker-Bots stellen eine Verbindung zu diesen Kanälen her und übertragen das vom Listener aufgenommene Audio.",
+      "externalChannels": "Wenn Sie Audio auch an andere Server übertragen möchten, fügen Sie hier die IDs externer Sprachkanäle ein (getrennt durch Zeilenumbruch oder Komma). Stellen Sie sicher, dass \"Speaker\"-Bots zu diesen Servern eingeladen wurden!",
+      "enableBroadcasting": "Hauptschalter zum Aktivieren oder Deaktivieren des gesamten Broadcasting-Systems für den angegebenen Server.",
+      "saveToMainframe": "Speichert die aktuelle Konfiguration in der Datenbank. Änderungen werden vom System neu geladen.",
+      "botLogsTerminal": "Integriertes Terminal zum Anzeigen von Systemprotokollen in Echtzeit. Nützlich zur Überwachung des Verbindungsstatus und zur Fehlerbehebung.",
+      "restartSystem": "Erzwingt einen Neustart der Bots. Verwenden Sie dies, wenn das System festzustecken scheint oder Bots keine Verbindung zu Kanälen herstellen (verursacht eine kurze Dienstunterbrechung)."
+    },
+    "section5": {
+      "title": "5. Discord-Befehle (Slash Commands)",
+      "p1": "Sobald das System über diese Schnittstelle konfiguriert und aktiviert ist, können Sie die Übertragung direkt von Discord aus steuern:",
+      "cmdOnDuty": "Startet die Audioübertragung. Der Listener-Bot tritt dem Quellkanal bei und Speaker-Bots verbinden sich mit den konfigurierten Zielkanälen.",
+      "cmdAtEase": "Stoppt die Übertragung sofort. Alle Bots trennen die Verbindung zu ihren jeweiligen Sprachkanälen."
+    },
+    "sectionAdmin": {
+      "title": "6. Admin-Kontrollfeld",
+      "p1": "Der Zugriff auf diesen Bereich ist ausschließlich Administratoren vorbehalten. Klicken Sie im Dashboard auf 'Admin Panel', um darauf zuzugreifen. Die Schnittstelle ermöglicht die Verwaltung der gesamten Anwendung.",
+      "overview": "Übersicht: Sehen Sie globale Systemstatistiken (Gesamtbenutzer, konfigurierte Server, aktive Server).",
+      "users": "Benutzer: Verwalten Sie den Zugriff auf die Webanwendung. Sie können neue Benutzer über ihre Discord-ID hinzufügen, ihnen 'Admin'- oder 'Benutzer'-Rollen zuweisen und ihren Zugriff widerrufen.",
+      "system": "System: Zeigen Sie die Live-Bot-Protokolle an und erzwingen Sie bei Anomalien einen Systemneustart (Bot und API)."
+    }
+  },
+  "adminPanel": {
+    "title": "ADMIN CONTROL PANEL",
+    "backToDashboard": "BACK TO DASHBOARD",
+    "tabs": {
+      "overview": "OVERVIEW",
+      "users": "USERS",
+      "system": "SYSTEM"
+    },
+    "overview": {
+      "totalUsers": "Total Users",
+      "configuredGuilds": "Configured Guilds",
+      "activeGuilds": "Active Guilds"
+    },
+    "users": {
+      "addNewUser": "Add New User",
+      "discordId": "Discord ID",
+      "username": "Username",
+      "role": "Role",
+      "roleUser": "User",
+      "roleAdmin": "Admin",
+      "add": "Add",
+      "addedAt": "Added At",
+      "actions": "Actions",
+      "makeAdmin": "Make Admin",
+      "demote": "Demote",
+      "delete": "Delete"
+    },
+    "system": {
+      "systemRestart": "System Restart",
+      "restartDesc": "Force reboot the bots and API. Causes a brief service interruption.",
+      "liveBotLogs": "LIVE BOT LOGS"
+    },
+    "alerts": {
+      "userAdded": "User successfully added",
+      "errorAdding": "Error while adding user",
+      "confirmRoleChange": "Do you want to change the role to",
+      "errorUpdating": "Error updating user",
+      "confirmDelete": "Are you sure you want to delete this user?",
+      "errorDeleting": "Error deleting user"
+    }
+  }
+}

@@ -61,6 +61,7 @@ async def callback(code: str, state: str = None):
         jwt_payload = {
             "sub": discord_id,
             "username": user_info.get("username"),
+            "role": admin.role,
             "exp": expiration
         }
         session_token = jwt.encode(jwt_payload, settings.DISCORD_CLIENT_SECRET, algorithm="HS256")

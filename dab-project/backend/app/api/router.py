@@ -5,6 +5,9 @@ api_router = APIRouter()
 
 api_router.include_router(oauth_router, prefix="/oauth", tags=["oauth"])
 
+from app.api.admin import router as admin_router
+api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
+
 from app.api.oauth import get_current_admin
 from app.models.models import AdminUser, GuildConfig, BotLog
 from app.core.config import settings
@@ -72,6 +75,8 @@ async def get_guild_roles(guild_id: str, admin: AdminUser = Depends(get_current_
 
 @api_router.get("/logs")
 async def get_logs(admin: AdminUser = Depends(get_current_admin)):
+    if admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo gli amministratori possono vedere i log.")
     logs = await BotLog.find_all().sort("-timestamp").limit(100).to_list()
     logs.reverse() # return chronological
     return [{"timestamp": log.timestamp.isoformat(), "level": log.level, "message": log.message} for log in logs]
@@ -86,5 +91,7 @@ async def restart_docker_containers():
 
 @api_router.post("/system/restart")
 async def restart_system(background_tasks: BackgroundTasks, admin: AdminUser = Depends(get_current_admin)):
+    if admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo gli amministratori possono riavviare il sistema.")
     background_tasks.add_task(restart_docker_containers)
     return {"status": "success", "message": "Restarting bot and api..."}

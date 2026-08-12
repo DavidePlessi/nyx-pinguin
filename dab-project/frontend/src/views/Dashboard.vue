@@ -2,11 +2,30 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import CyberModal from '../components/CyberModal.vue'
+import { t } from '../i18n'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || ''
 const sessionToken = ref<string | null>(localStorage.getItem('dab_session_token'))
 const router = useRouter()
 const route = useRoute()
+
+const userRole = ref<string>('user')
+
+if (sessionToken.value) {
+  try {
+    const base64Url = sessionToken.value.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    }).join(''))
+    const payload = JSON.parse(jsonPayload)
+    if (payload && payload.role) {
+      userRole.value = payload.role
+    }
+  } catch (e) {
+    console.error("Error decoding token", e)
+  }
+}
 
 const isLoading = ref(false)
 const error = ref('')
@@ -20,9 +39,6 @@ const isActive = ref(false)
 
 const availableChannels = ref<any[]>([])
 const availableRoles = ref<any[]>([])
-const logs = ref<any[]>([])
-const showLogs = ref(false)
-let logsInterval: any = null
 
 const modalState = ref({
   show: false,
@@ -32,17 +48,17 @@ const modalState = ref({
   resolve: null as ((value: boolean) => void) | null
 })
 
-const showAlert = (message: string, title = 'SYSTEM ALERT') => {
+const showAlert = (message: string, title?: string) => {
   return new Promise<boolean>((resolve) => {
-    modalState.value = { show: true, title, message, isConfirm: false, resolve }
+    modalState.value = { show: true, title: title || t('modal.systemAlert'), message, isConfirm: false, resolve }
   })
 }
 
-const showConfirm = (message: string, title = 'CONFIRM ACTION') => {
-  return new Promise<boolean>((resolve) => {
-    modalState.value = { show: true, title, message, isConfirm: true, resolve }
-  })
-}
+// const showConfirm = (message: string, title?: string) => {
+//   return new Promise<boolean>((resolve) => {
+//     modalState.value = { show: true, title: title || t('modal.systemAlert'), message, isConfirm: true, resolve }
+//   })
+// }
 
 const handleModalConfirm = () => {
   if (modalState.value.resolve) modalState.value.resolve(true)
@@ -57,7 +73,6 @@ const handleModalCancel = () => {
 const logout = () => {
   localStorage.removeItem('dab_session_token')
   sessionToken.value = null
-  if (logsInterval) clearInterval(logsInterval)
   router.replace({ name: 'Login', query: { guild: route.query.guild } })
 }
 
@@ -89,7 +104,7 @@ const loadConfig = async () => {
     })
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) logout()
-      throw new Error("Errore nel caricamento")
+      throw new Error(t('dashboard.errorLoading'))
     }
     const data = await res.json()
     sourceChannelId.value = data.source_channel_id || ''
@@ -106,32 +121,9 @@ const loadConfig = async () => {
   }
 }
 
-const toggleLogs = () => {
-  showLogs.value = !showLogs.value
-  if (showLogs.value) {
-    fetchLogs()
-    logsInterval = setInterval(fetchLogs, 2000)
-  } else {
-    if (logsInterval) clearInterval(logsInterval)
-  }
-}
-
-const fetchLogs = async () => {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/logs`, {
-      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
-    })
-    if (res.ok) {
-      logs.value = await res.json()
-    }
-  } catch (e) {
-    console.error("Failed to fetch logs", e)
-  }
-}
-
 const saveConfig = async () => {
   if (!guildId.value || !sourceChannelId.value) {
-    error.value = "Guild ID e Source Channel sono obbligatori!"
+    error.value = t('dashboard.errorRequiredFields')
     return
   }
   
@@ -160,33 +152,9 @@ const saveConfig = async () => {
     })
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) logout()
-      throw new Error("Salvataggio fallito")
+      throw new Error(t('dashboard.errorSaving'))
     }
-    await showAlert("Configurazione salvata nel mainframe!", "SUCCESS")
-  } catch (err: any) {
-    error.value = err.message
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const restartSystem = async () => {
-  if (!(await showConfirm("Sei sicuro di voler riavviare il bot e le API? Questo comporterà una breve interruzione del servizio.", "SYSTEM REBOOT"))) return
-  
-  isLoading.value = true
-  error.value = ''
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/system/restart`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sessionToken.value}`
-      }
-    })
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) logout()
-      throw new Error("Riavvio fallito")
-    }
-    await showAlert("Riavvio in corso. Ricarica la pagina tra qualche secondo.", "REBOOTING")
+    await showAlert(t('dashboard.successSaveMessage'), t('dashboard.successTitle'))
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -205,7 +173,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (logsInterval) clearInterval(logsInterval)
 })
 </script>
 
@@ -220,13 +187,18 @@ onUnmounted(() => {
       @cancel="handleModalCancel"
     />
     
-    <div class="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
-      <h2 class="font-rajdhani text-3xl font-bold neon-text-cyan">MATRIX CONFIGURATION</h2>
-      <button @click="logout" class="text-sm text-gray-400 hover:text-cyber-pink transition-colors">Log Out [x]</button>
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 border-b border-gray-800 pb-4">
+      <h2 class="font-rajdhani text-2xl md:text-3xl font-bold neon-text-cyan text-center md:text-left">{{ t('dashboard.matrixConfiguration') }}</h2>
+      <div class="flex items-center gap-4">
+        <router-link v-if="userRole === 'admin'" to="/admin" class="text-sm text-cyber-cyan hover:text-white transition-colors whitespace-nowrap font-bold">
+          ADMIN PANEL
+        </router-link>
+        <button @click="logout" class="text-sm text-gray-400 hover:text-cyber-pink transition-colors whitespace-nowrap">{{ t('dashboard.logout') }}</button>
+      </div>
     </div>
 
     <div v-if="error" class="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-md mb-6 font-mono">
-      > ERROR: {{ error }}
+      {{ t('dashboard.errorPrefix') }} {{ error }}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -234,19 +206,19 @@ onUnmounted(() => {
       <!-- Target Selection -->
       <div class="space-y-6">
         <div>
-          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">Guild ID (Server)</label>
+          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">{{ t('dashboard.guildIdLabel') }}</label>
           <div class="flex gap-2">
-            <input v-model="guildId" type="text" class="neon-input flex-1" placeholder="Es. 1529123644842705018">
+            <input v-model="guildId" type="text" class="neon-input flex-1" :placeholder="t('dashboard.guildIdPlaceholder')">
             <button @click="loadConfig" :disabled="isLoading" class="bg-gray-800 hover:bg-gray-700 px-4 rounded border border-gray-600 transition-colors">
-              SCAN
+              {{ t('dashboard.scan') }}
             </button>
           </div>
         </div>
 
         <div>
-          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">Source Channel ID</label>
+          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">{{ t('dashboard.sourceChannelIdLabel') }}</label>
           <select v-model="sourceChannelId" class="neon-input bg-gray-900">
-            <option value="">Seleziona Canale</option>
+            <option value="">{{ t('dashboard.selectChannel') }}</option>
             <option v-for="ch in availableChannels" :key="ch.id" :value="ch.id">
               {{ ch.name }}
             </option>
@@ -254,37 +226,37 @@ onUnmounted(() => {
         </div>
 
         <div>
-          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">Authorized Role ID (Opzionale)</label>
+          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">{{ t('dashboard.authorizedRoleIdLabel') }}</label>
           <select v-model="sourceRoleId" class="neon-input bg-gray-900 border-cyber-purple/50 focus:border-cyber-purple">
-            <option value="">Lascia vuoto per tutti</option>
+            <option value="">{{ t('dashboard.leaveEmptyForAll') }}</option>
             <option v-for="r in availableRoles" :key="r.id" :value="r.id">
               {{ r.name }}
             </option>
           </select>
-          <p class="text-xs text-gray-500 mt-1 font-mono">Se impostato, il bot ascolterà solo chi ha questo ruolo.</p>
+          <p class="text-xs text-gray-500 mt-1 font-mono">{{ t('dashboard.roleHint') }}</p>
         </div>
       </div>
 
       <!-- Destinations -->
       <div class="space-y-6">
         <div>
-          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">Destination Channels (ID)</label>
+          <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">{{ t('dashboard.destChannelsLabel') }}</label>
           <div class="h-48 overflow-y-auto border border-gray-800 rounded bg-gray-900/50 p-2 space-y-2 custom-scrollbar">
             <label v-for="ch in availableChannels" :key="ch.id" class="flex items-center gap-2 p-2 hover:bg-gray-800 rounded cursor-pointer">
               <input type="checkbox" :value="ch.id" v-model="destChannels" class="accent-cyber-cyan w-4 h-4">
               <span class="text-gray-300 font-mono text-sm">{{ ch.name }}</span>
             </label>
             <div v-if="availableChannels.length === 0" class="text-gray-500 text-sm text-center py-10">
-              Esegui SCAN per caricare i canali
+              {{ t('dashboard.runScanHint') }}
             </div>
           </div>
-          <p class="text-xs text-gray-500 mt-1 font-mono">I canali in cui i cloni trasmetteranno l'audio all'interno di questo server.</p>
+          <p class="text-xs text-gray-500 mt-1 font-mono">{{ t('dashboard.destChannelsHint') }}</p>
         </div>
 
 
         <div class="flex items-center gap-3 pt-2">
           <input v-model="isActive" type="checkbox" id="isActive" class="w-5 h-5 accent-cyber-cyan bg-gray-900 border-gray-700 rounded">
-          <label for="isActive" class="font-rajdhani text-lg text-gray-300">Abilita Broadcasting su questo Server</label>
+          <label for="isActive" class="font-rajdhani text-lg text-gray-300">{{ t('dashboard.enableBroadcasting') }}</label>
         </div>
       </div>
 
@@ -292,39 +264,16 @@ onUnmounted(() => {
 
     <!-- External Destinations (Full Width) -->
     <div class="mt-8">
-      <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">External Channels (ID)</label>
-      <textarea v-model="externalDestChannelsText" rows="3" class="neon-input bg-gray-900 w-full" placeholder="ID canali separati da a capo o virgola..."></textarea>
-      <p class="text-xs text-gray-500 mt-1 font-mono">ID dei canali situati in ALTRI server (Cross-Server Broadcast).</p>
+      <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">{{ t('dashboard.externalChannelsLabel') }}</label>
+      <textarea v-model="externalDestChannelsText" rows="3" class="neon-input bg-gray-900 w-full" :placeholder="t('dashboard.externalChannelsPlaceholder')"></textarea>
+      <p class="text-xs text-gray-500 mt-1 font-mono">{{ t('dashboard.externalChannelsHint') }}</p>
     </div>
 
     <div class="mt-10 pt-6 border-t border-gray-800 flex justify-end">
       <button @click="saveConfig" :disabled="isLoading" class="neon-btn-primary w-full md:w-auto px-12">
-        {{ isLoading ? 'UPLOADING...' : 'SAVE TO MAINFRAME' }}
+        {{ isLoading ? t('dashboard.uploading') : t('dashboard.saveToMainframe') }}
       </button>
     </div>
     
-    <!-- Terminal / Logs Section -->
-    <div class="mt-8 border border-gray-800 rounded bg-black/60 overflow-hidden">
-      <div 
-        class="bg-gray-900/80 p-3 flex justify-between items-center transition-colors"
-      >
-        <div @click="toggleLogs" class="font-rajdhani text-cyber-cyan font-bold flex items-center gap-2 cursor-pointer hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-          BOT LOGS TERMINAL
-          <span class="text-gray-500 font-mono text-sm">[{{ showLogs ? '-' : '+' }}]</span>
-        </div>
-        <button @click="restartSystem" :disabled="isLoading" class="text-xs bg-red-900/40 hover:bg-red-800 text-red-200 border border-red-700/50 px-3 py-1 rounded transition-colors flex items-center gap-1 disabled:opacity-50">
-           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-           RESTART SYSTEM
-        </button>
-      </div>
-      <div v-if="showLogs" class="p-4 h-64 overflow-y-auto font-mono text-sm text-gray-300 space-y-1 custom-scrollbar">
-        <div v-for="(log, idx) in logs" :key="idx" class="border-b border-gray-800/50 pb-1">
-          <span class="text-gray-500">[{{ new Date(log.timestamp).toLocaleTimeString() }}]</span>
-          <span :class="log.level === 'error' ? 'text-red-400' : 'text-cyber-green ml-2'">{{ log.message }}</span>
-        </div>
-        <div v-if="logs.length === 0" class="text-gray-600 italic">Nessun log disponibile...</div>
-      </div>
-    </div>
   </div>
 </template>

@@ -1,0 +1,148 @@
+{
+  "app": {
+    "audioMatrix": "// AUDIO BROADCASTING MATRIX",
+    "viewManual": "[ VIEW OPERATING MANUAL ]",
+    "poweredBy": "Powered by"
+  },
+  "login": {
+    "verifyingCredentials": "Verifying credentials...",
+    "adminAccessRequired": "ADMIN ACCESS REQUIRED",
+    "authenticate": "AUTHENTICATE"
+  },
+  "dashboard": {
+    "matrixConfiguration": "MATRIX CONFIGURATION",
+    "logout": "Log Out [x]",
+    "guildIdLabel": "Guild ID (Server)",
+    "guildIdPlaceholder": "E.g. 1529123644842705018",
+    "scan": "SCAN",
+    "sourceChannelIdLabel": "Source Channel ID",
+    "selectChannel": "Select Channel",
+    "authorizedRoleIdLabel": "Authorized Role ID (Optional)",
+    "leaveEmptyForAll": "Leave empty for all",
+    "roleHint": "If set, the bot will only listen to users with this role.",
+    "destChannelsLabel": "Destination Channels (ID)",
+    "runScanHint": "Run SCAN to load channels",
+    "destChannelsHint": "The channels where clones will broadcast audio within this server.",
+    "enableBroadcasting": "Enable Broadcasting on this Server",
+    "externalChannelsLabel": "External Channels (ID)",
+    "externalChannelsPlaceholder": "Channel IDs separated by newline or comma...",
+    "externalChannelsHint": "IDs of channels located in OTHER servers (Cross-Server Broadcast).",
+    "uploading": "UPLOADING...",
+    "saveToMainframe": "SAVE TO MAINFRAME",
+    "botLogsTerminal": "BOT LOGS TERMINAL",
+    "restartSystem": "RESTART SYSTEM",
+    "noLogsAvailable": "No logs available...",
+    "errorPrefix": "> ERROR:",
+    "errorRequiredFields": "Guild ID and Source Channel are required!",
+    "errorLoading": "Loading error",
+    "errorSaving": "Save failed",
+    "successSaveMessage": "Configuration saved to mainframe!",
+    "successTitle": "SUCCESS",
+    "restartConfirmMessage": "Are you sure you want to restart the bot and APIs? This will cause a brief service interruption.",
+    "systemRebootTitle": "SYSTEM REBOOT",
+    "errorRestart": "Restart failed",
+    "restartSuccessMessage": "Rebooting. Reload the page in a few seconds.",
+    "rebootingTitle": "REBOOTING"
+  },
+  "modal": {
+    "systemAlert": "SYSTEM ALERT",
+    "abort": "ABORT",
+    "confirm": "CONFIRM",
+    "acknowledge": "ACKNOWLEDGE"
+  },
+  "manual": {
+    "manualTitle": "OPERATING MANUAL",
+    "print": "PRINT",
+    "close": "Close [x]",
+    "section1": {
+      "title": "1. How to invite Bots",
+      "p1": "To make the broadcasting system work, you need to invite both the \"Listener\" bot (which listens to the audio) and the \"Speaker\" bots (which reproduce the audio in destination channels).",
+      "listener": "Listener:",
+      "speaker": "Speaker",
+      "invite": "Invite"
+    },
+    "section2": {
+      "title": "2. How to get the Guild ID (Server ID)",
+      "p1": "To configure the system, you will need the Discord server ID (Guild ID).",
+      "li1": "Open Discord <strong>User Settings</strong> (gear icon bottom left).",
+      "li2": "Go to <strong>Advanced</strong> (under App Settings section).",
+      "li3": "Enable <strong>Developer Mode</strong>.",
+      "li4": "Go back to the server list, right-click on your server's icon and select <strong>Copy Server ID</strong> (or Copy ID).",
+      "li5": "Paste this ID in the \"Guild ID (Server)\" field in the web interface and click SCAN."
+    },
+    "section3": {
+      "title": "3. How to get the Channel ID",
+      "p1": "To send audio to channels in <strong>other servers</strong>, you will need the ID of that voice channel (Channel ID).",
+      "li1": "Make sure you have enabled <strong>Developer Mode</strong> as explained in the previous step.",
+      "li2": "Enter the external server where you want to broadcast.",
+      "li3": "Right-click on the desired voice channel name and select <strong>Copy Channel ID</strong> (or Copy ID).",
+      "li4": "Paste the copied ID in the \"External Channels (ID)\" field on the Dashboard."
+    },
+    "section4": {
+      "title": "4. Interface Functions",
+      "guildId": "Enter the server ID and click SCAN to load all voice channels and roles in the server.",
+      "sourceChannelId": "Select the \"source\" voice channel. The Listener bot will connect here to capture audio of who is speaking.",
+      "authorizedRoleId": "Select a role. Only users with this role will be broadcasted. If left empty, anyone's audio in the source channel will be captured.",
+      "destChannels": "Select one or more destination channels within the current server. Speaker bots will connect to these channels and broadcast the audio captured by the Listener.",
+      "externalChannels": "If you want to broadcast audio to other servers as well, paste the IDs of external voice channels here (separated by newline or comma). Make sure \"Speaker\" bots have been invited to those servers!",
+      "enableBroadcasting": "Main switch to enable or disable the entire broadcasting system for the specified server.",
+      "saveToMainframe": "Saves current configuration to the database. Changes will be reloaded by the system.",
+      "botLogsTerminal": "Built-in terminal to view system logs in real time. Useful for monitoring connection status and troubleshooting errors.",
+      "restartSystem": "Force restart the bots. Use this if the system seems stuck or bots aren't connecting to channels (causes brief service interruption)."
+    },
+    "section5": {
+      "title": "5. Discord Commands (Slash Commands)",
+      "p1": "Once the system is configured and enabled via this interface, you can control the broadcast directly from Discord:",
+      "cmdOnDuty": "Starts the audio broadcasting. The Listener bot joins the source channel and Speaker bots connect to the configured destination channels.",
+      "cmdAtEase": "Stops broadcasting immediately. All bots will disconnect from their respective voice channels."
+    },
+    "sectionAdmin": {
+      "title": "6. Admin Control Panel",
+      "p1": "Access to this section is strictly reserved for administrators. Click on 'Admin Panel' in the Dashboard to access. The interface allows you to manage the entire application.",
+      "overview": "Overview: View global system statistics (total users, configured servers, active servers).",
+      "users": "Users: Manage access to the web application. You can add new users via their Discord ID, assign them 'Admin' or 'User' roles, and revoke their access.",
+      "system": "System: View live bot logs and force a system restart (bot and API) in case of anomalies."
+    }
+  },
+  "adminPanel": {
+    "title": "ADMIN CONTROL PANEL",
+    "backToDashboard": "BACK TO DASHBOARD",
+    "tabs": {
+      "overview": "OVERVIEW",
+      "users": "USERS",
+      "system": "SYSTEM"
+    },
+    "overview": {
+      "totalUsers": "Total Users",
+      "configuredGuilds": "Configured Guilds",
+      "activeGuilds": "Active Guilds"
+    },
+    "users": {
+      "addNewUser": "Add New User",
+      "discordId": "Discord ID",
+      "username": "Username",
+      "role": "Role",
+      "roleUser": "User",
+      "roleAdmin": "Admin",
+      "add": "Add",
+      "addedAt": "Added At",
+      "actions": "Actions",
+      "makeAdmin": "Make Admin",
+      "demote": "Demote",
+      "delete": "Delete"
+    },
+    "system": {
+      "systemRestart": "System Restart",
+      "restartDesc": "Force reboot the bots and API. Causes a brief service interruption.",
+      "liveBotLogs": "LIVE BOT LOGS"
+    },
+    "alerts": {
+      "userAdded": "User successfully added",
+      "errorAdding": "Error while adding user",
+      "confirmRoleChange": "Do you want to change the role to",
+      "errorUpdating": "Error updating user",
+      "confirmDelete": "Are you sure you want to delete this user?",
+      "errorDeleting": "Error deleting user"
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "app": {
+    "audioMatrix": "// MATRICE DE DIFFUSION AUDIO",
+    "viewManual": "[ VOIR LE MANUEL D'UTILISATION ]",
+    "poweredBy": "Propulsé par"
+  },
+  "login": {
+    "verifyingCredentials": "Vérification des informations d'identification...",
+    "adminAccessRequired": "ACCÈS ADMINISTRATEUR REQUIS",
+    "authenticate": "S'AUTHENTIFIER"
+  },
+  "dashboard": {
+    "matrixConfiguration": "CONFIGURATION DE LA MATRICE",
+    "logout": "Déconnexion [x]",
+    "guildIdLabel": "ID du Serveur (Guild ID)",
+    "guildIdPlaceholder": "Ex. 1529123644842705018",
+    "scan": "SCANNER",
+    "sourceChannelIdLabel": "ID du Canal Source",
+    "selectChannel": "Sélectionner un canal",
+    "authorizedRoleIdLabel": "ID du Rôle Autorisé (Optionnel)",
+    "leaveEmptyForAll": "Laisser vide pour tous",
+    "roleHint": "Si défini, le bot n'écoutera que les utilisateurs avec ce rôle.",
+    "destChannelsLabel": "Canaux de Destination (ID)",
+    "runScanHint": "Exécutez SCANNER pour charger les canaux",
+    "destChannelsHint": "Les canaux où les clones diffuseront l'audio au sein de ce serveur.",
+    "enableBroadcasting": "Activer la diffusion sur ce serveur",
+    "externalChannelsLabel": "Canaux Externes (ID)",
+    "externalChannelsPlaceholder": "ID des canaux séparés par un saut de ligne ou une virgule...",
+    "externalChannelsHint": "ID des canaux situés dans d'AUTRES serveurs (Diffusion inter-serveurs).",
+    "uploading": "TÉLÉCHARGEMENT...",
+    "saveToMainframe": "SAUVEGARDER DANS LE MAINFRAME",
+    "botLogsTerminal": "TERMINAL DES JOURNAUX DU BOT",
+    "restartSystem": "REDÉMARRER LE SYSTÈME",
+    "noLogsAvailable": "Aucun journal disponible...",
+    "errorPrefix": "> ERREUR :",
+    "errorRequiredFields": "L'ID du serveur et le canal source sont obligatoires !",
+    "errorLoading": "Erreur de chargement",
+    "errorSaving": "Échec de la sauvegarde",
+    "successSaveMessage": "Configuration sauvegardée dans le mainframe !",
+    "successTitle": "SUCCÈS",
+    "restartConfirmMessage": "Êtes-vous sûr de vouloir redémarrer le bot et les API ? Cela entraînera une brève interruption de service.",
+    "systemRebootTitle": "REDÉMARRAGE DU SYSTÈME",
+    "errorRestart": "Échec du redémarrage",
+    "restartSuccessMessage": "Redémarrage en cours. Rechargez la page dans quelques secondes.",
+    "rebootingTitle": "REDÉMARRAGE"
+  },
+  "modal": {
+    "systemAlert": "ALERTE SYSTÈME",
+    "abort": "ANNULER",
+    "confirm": "CONFIRMER",
+    "acknowledge": "COMPRIS"
+  },
+  "manual": {
+    "manualTitle": "MANUEL D'UTILISATION",
+    "print": "IMPRIMER",
+    "close": "Fermer [x]",
+    "section1": {
+      "title": "1. Comment inviter les Bots",
+      "p1": "Pour que le système de diffusion fonctionne, vous devez inviter le bot \"Listener\" (qui écoute l'audio) et les bots \"Speaker\" (qui reproduisent l'audio dans les canaux de destination).",
+      "listener": "Listener :",
+      "speaker": "Speaker",
+      "invite": "Inviter"
+    },
+    "section2": {
+      "title": "2. Comment obtenir le Guild ID (ID du Serveur)",
+      "p1": "Pour configurer le système, vous aurez besoin de l'ID du serveur Discord (Guild ID).",
+      "li1": "Ouvrez les <strong>Paramètres utilisateur</strong> de Discord (l'icône d'engrenage en bas à gauche).",
+      "li2": "Allez dans <strong>Avancé</strong> (sous la section Paramètres de l'application).",
+      "li3": "Activez le <strong>Mode Développeur</strong>.",
+      "li4": "Retournez à la liste des serveurs, faites un clic droit sur l'icône de votre serveur et sélectionnez <strong>Copier l'identifiant du serveur</strong> (ou Copier l'ID).",
+      "li5": "Collez cet ID dans le champ \"ID du Serveur (Guild ID)\" de l'interface web et cliquez sur SCANNER."
+    },
+    "section3": {
+      "title": "3. Comment obtenir le Channel ID",
+      "p1": "Pour envoyer de l'audio à des canaux dans d'<strong>autres serveurs</strong>, vous aurez besoin de l'ID de ce canal vocal (Channel ID).",
+      "li1": "Assurez-vous d'avoir activé le <strong>Mode Développeur</strong> comme expliqué à l'étape précédente.",
+      "li2": "Entrez dans le serveur externe où vous souhaitez diffuser.",
+      "li3": "Faites un clic droit sur le nom du canal vocal souhaité et sélectionnez <strong>Copier l'identifiant du salon</strong> (ou Copier l'ID).",
+      "li4": "Collez l'ID copié dans le champ \"Canaux Externes (ID)\" du tableau de bord."
+    },
+    "section4": {
+      "title": "4. Fonctions de l'Interface",
+      "guildId": "Entrez l'ID du serveur et cliquez sur SCANNER pour charger tous les canaux vocaux et rôles du serveur.",
+      "sourceChannelId": "Sélectionnez le canal vocal \"source\". Le bot Listener s'y connectera pour capturer l'audio de la personne qui parle.",
+      "authorizedRoleId": "Sélectionnez un rôle. Seuls les utilisateurs avec ce rôle seront diffusés. Si laissé vide, l'audio de n'importe qui dans le canal source sera capturé.",
+      "destChannels": "Sélectionnez un ou plusieurs canaux de destination dans le serveur actuel. Les bots Speaker se connecteront à ces canaux et diffuseront l'audio capturé par le Listener.",
+      "externalChannels": "Si vous souhaitez également diffuser de l'audio sur d'autres serveurs, collez les ID des canaux vocaux externes ici (séparés par un saut de ligne ou une virgule). Assurez-vous que les bots \"Speaker\" ont été invités sur ces serveurs !",
+      "enableBroadcasting": "Interrupteur principal pour activer ou désactiver l'ensemble du système de diffusion pour le serveur spécifié.",
+      "saveToMainframe": "Sauvegarde la configuration actuelle dans la base de données. Les modifications seront rechargées par le système.",
+      "botLogsTerminal": "Terminal intégré pour afficher les journaux du système en temps réel. Utile pour surveiller l'état de la connexion et résoudre les erreurs.",
+      "restartSystem": "Forcez le redémarrage des bots. Utilisez ceci si le système semble bloqué ou si les bots ne se connectent pas aux canaux (provoque une brève interruption de service)."
+    },
+    "section5": {
+      "title": "5. Commandes Discord (Commandes Slash)",
+      "p1": "Une fois le système configuré et activé via cette interface, vous pouvez contrôler la diffusion directement depuis Discord :",
+      "cmdOnDuty": "Démarre la diffusion audio. Le bot Listener rejoint le canal source et les bots Speaker se connectent aux canaux de destination configurés.",
+      "cmdAtEase": "Arrête la diffusion immédiatement. Tous les bots se déconnecteront de leurs canaux vocaux respectifs."
+    },
+    "sectionAdmin": {
+      "title": "6. Panneau de Configuration Admin",
+      "p1": "L'accès à cette section est strictement réservé aux administrateurs. Cliquez sur 'Admin Panel' dans le tableau de bord pour y accéder. L'interface vous permet de gérer l'ensemble de l'application.",
+      "overview": "Aperçu : Consultez les statistiques globales du système (nombre total d'utilisateurs, serveurs configurés, serveurs actifs).",
+      "users": "Utilisateurs : Gérez l'accès à l'application web. Vous pouvez ajouter de nouveaux utilisateurs via leur ID Discord, leur attribuer le rôle 'Admin' ou 'Utilisateur', et révoquer leur accès.",
+      "system": "Système : Affichez les journaux du bot en temps réel et forcez un redémarrage du système (bot et API) en cas d'anomalie."
+    }
+  },
+  "adminPanel": {
+    "title": "ADMIN CONTROL PANEL",
+    "backToDashboard": "BACK TO DASHBOARD",
+    "tabs": {
+      "overview": "OVERVIEW",
+      "users": "USERS",
+      "system": "SYSTEM"
+    },
+    "overview": {
+      "totalUsers": "Total Users",
+      "configuredGuilds": "Configured Guilds",
+      "activeGuilds": "Active Guilds"
+    },
+    "users": {
+      "addNewUser": "Add New User",
+      "discordId": "Discord ID",
+      "username": "Username",
+      "role": "Role",
+      "roleUser": "User",
+      "roleAdmin": "Admin",
+      "add": "Add",
+      "addedAt": "Added At",
+      "actions": "Actions",
+      "makeAdmin": "Make Admin",
+      "demote": "Demote",
+      "delete": "Delete"
+    },
+    "system": {
+      "systemRestart": "System Restart",
+      "restartDesc": "Force reboot the bots and API. Causes a brief service interruption.",
+      "liveBotLogs": "LIVE BOT LOGS"
+    },
+    "alerts": {
+      "userAdded": "User successfully added",
+      "errorAdding": "Error while adding user",
+      "confirmRoleChange": "Do you want to change the role to",
+      "errorUpdating": "Error updating user",
+      "confirmDelete": "Are you sure you want to delete this user?",
+      "errorDeleting": "Error deleting user"
+    }
+  }
+}

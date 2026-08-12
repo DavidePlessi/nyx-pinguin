@@ -16,6 +16,7 @@ class GuildConfig(Document):
 class AdminUser(Document):
     discord_id: str
     username: str
+    role: str = "user"
     added_at: datetime = datetime.utcnow()
 
     class Settings:

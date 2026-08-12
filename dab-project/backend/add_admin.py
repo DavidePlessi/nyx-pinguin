@@ -7,11 +7,12 @@ import sys
 
 async def main():
     if len(sys.argv) < 3:
-        print("Uso: python add_admin.py <DISCORD_ID> <USERNAME>")
+        print("Uso: python add_admin.py <DISCORD_ID> <USERNAME> [RUOLO]")
         sys.exit(1)
     
     discord_id = sys.argv[1]
     username = sys.argv[2]
+    role = sys.argv[3] if len(sys.argv) > 3 else "user"
 
     print("Connessione al database...")
     client = AsyncIOMotorClient(settings.MONGO_URI)
@@ -20,11 +21,14 @@ async def main():
 
     existing = await AdminUser.find_one(AdminUser.discord_id == discord_id)
     if existing:
-        print(f"L'utente {username} ({discord_id}) è già un amministratore!")
+        print(f"L'utente {username} ({discord_id}) esiste già! Ruolo attuale: {existing.role}")
+        existing.role = role
+        await existing.save()
+        print(f"Ruolo aggiornato a {role}.")
     else:
-        admin = AdminUser(discord_id=discord_id, username=username)
+        admin = AdminUser(discord_id=discord_id, username=username, role=role)
         await admin.save()
-        print(f"✅ Utente {username} ({discord_id}) aggiunto con successo agli amministratori!")
+        print(f"✅ Utente {username} ({discord_id}) aggiunto con ruolo {role}!")
 
 if __name__ == "__main__":
     asyncio.run(main())

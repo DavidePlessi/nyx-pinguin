@@ -22,6 +22,12 @@ const router = createRouter({
       name: 'Manual',
       component: ManualView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'AdminPanel',
+      component: () => import('../views/AdminPanel.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

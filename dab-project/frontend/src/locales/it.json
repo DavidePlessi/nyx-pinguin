@@ -1,0 +1,148 @@
+{
+  "app": {
+    "audioMatrix": "// MATRIX DI TRASMISSIONE AUDIO",
+    "viewManual": "[ VISUALIZZA MANUALE OPERATIVO ]",
+    "poweredBy": "Powered by"
+  },
+  "login": {
+    "verifyingCredentials": "Verifica credenziali in corso...",
+    "adminAccessRequired": "RICHIESTO ACCESSO ADMIN",
+    "authenticate": "AUTENTICATI"
+  },
+  "dashboard": {
+    "matrixConfiguration": "CONFIGURAZIONE MATRIX",
+    "logout": "Log Out [x]",
+    "guildIdLabel": "ID Gilda (Server)",
+    "guildIdPlaceholder": "Es. 1529123644842705018",
+    "scan": "SCANSIONA",
+    "sourceChannelIdLabel": "ID Canale Sorgente",
+    "selectChannel": "Seleziona Canale",
+    "authorizedRoleIdLabel": "ID Ruolo Autorizzato (Opzionale)",
+    "leaveEmptyForAll": "Lascia vuoto per tutti",
+    "roleHint": "Se impostato, il bot ascolterà solo chi ha questo ruolo.",
+    "destChannelsLabel": "Canali di Destinazione (ID)",
+    "runScanHint": "Esegui SCANSIONA per caricare i canali",
+    "destChannelsHint": "I canali in cui i cloni trasmetteranno l'audio all'interno di questo server.",
+    "enableBroadcasting": "Abilita Broadcasting su questo Server",
+    "externalChannelsLabel": "Canali Esterni (ID)",
+    "externalChannelsPlaceholder": "ID canali separati da a capo o virgola...",
+    "externalChannelsHint": "ID dei canali situati in ALTRI server (Cross-Server Broadcast).",
+    "uploading": "CARICAMENTO...",
+    "saveToMainframe": "SALVA NEL MAINFRAME",
+    "botLogsTerminal": "TERMINALE LOG BOT",
+    "restartSystem": "RIAVVIA SISTEMA",
+    "noLogsAvailable": "Nessun log disponibile...",
+    "errorPrefix": "> ERRORE:",
+    "errorRequiredFields": "Guild ID e Source Channel sono obbligatori!",
+    "errorLoading": "Errore nel caricamento",
+    "errorSaving": "Salvataggio fallito",
+    "successSaveMessage": "Configurazione salvata nel mainframe!",
+    "successTitle": "SUCCESSO",
+    "restartConfirmMessage": "Sei sicuro di voler riavviare il bot e le API? Questo comporterà una breve interruzione del servizio.",
+    "systemRebootTitle": "RIAVVIO SISTEMA",
+    "errorRestart": "Riavvio fallito",
+    "restartSuccessMessage": "Riavvio in corso. Ricarica la pagina tra qualche secondo.",
+    "rebootingTitle": "IN RIAVVIO"
+  },
+  "modal": {
+    "systemAlert": "ALLERTA DI SISTEMA",
+    "abort": "ANNULLA",
+    "confirm": "CONFERMA",
+    "acknowledge": "RICEVUTO"
+  },
+  "manual": {
+    "manualTitle": "MANUALE OPERATIVO",
+    "print": "STAMPA",
+    "close": "Chiudi [x]",
+    "section1": {
+      "title": "1. Come invitare i Bot",
+      "p1": "Per far funzionare il sistema di broadcasting, è necessario invitare sia il bot \"Listener\" (che ascolta l'audio) sia i bot \"Speaker\" (che riproducono l'audio nei canali di destinazione).",
+      "listener": "Listener:",
+      "speaker": "Speaker",
+      "invite": "Invita"
+    },
+    "section2": {
+      "title": "2. Come recuperare il Guild ID (ID del Server)",
+      "p1": "Per configurare il sistema, ti servirà l'ID del server Discord (Guild ID).",
+      "li1": "Apri le <strong>Impostazioni Utente</strong> di Discord (l'icona a forma di ingranaggio in basso a sinistra).",
+      "li2": "Vai su <strong>Avanzate</strong> (sotto la sezione Impostazioni App).",
+      "li3": "Attiva l'opzione <strong>Modalità Sviluppatore</strong>.",
+      "li4": "Torna alla lista dei server, fai clic destro sull'icona del tuo server e seleziona <strong>Copia ID server</strong> (o Copia ID).",
+      "li5": "Incolla questo ID nel campo \"Guild ID (Server)\" dell'interfaccia web e clicca su SCANSIONA."
+    },
+    "section3": {
+      "title": "3. Come recuperare il Channel ID (ID del Canale)",
+      "p1": "Per inviare l'audio in canali di <strong>altri server</strong>, ti servirà l'ID di quel canale vocale (Channel ID).",
+      "li1": "Assicurati di aver attivato la <strong>Modalità Sviluppatore</strong> come spiegato nel punto precedente.",
+      "li2": "Entra nel server esterno dove vuoi trasmettere.",
+      "li3": "Fai clic destro sul nome del canale vocale desiderato e seleziona <strong>Copia ID canale</strong> (o Copia ID).",
+      "li4": "Incolla l'ID appena copiato nel campo \"Canali Esterni (ID)\" della Dashboard."
+    },
+    "section4": {
+      "title": "4. Funzioni dell'Interfaccia",
+      "guildId": "Inserisci l'ID del server e clicca su SCANSIONA per caricare tutti i canali vocali e i ruoli presenti nel server.",
+      "sourceChannelId": "Seleziona il canale vocale \"sorgente\". Il bot Listener si connetterà qui per catturare l'audio di chi parla.",
+      "authorizedRoleId": "Seleziona un ruolo. Solo gli utenti in possesso di questo ruolo verranno trasmessi. Se lasciato vuoto, l'audio di chiunque nel canale sorgente verrà catturato.",
+      "destChannels": "Seleziona uno o più canali di destinazione all'interno del server corrente. I bot Speaker si connetteranno a questi canali e trasmetteranno l'audio catturato dal Listener.",
+      "externalChannels": "Se vuoi trasmettere l'audio anche in altri server, puoi incollare in questo campo di testo gli ID dei canali vocali esterni (separati da a capo o virgola). Assicurati che i bot \"Speaker\" siano stati invitati in quei server!",
+      "enableBroadcasting": "Interruttore principale per attivare o disattivare l'intero sistema di broadcasting per il server specificato.",
+      "saveToMainframe": "Salva la configurazione attuale nel database. Le modifiche verranno ricaricate dal sistema.",
+      "botLogsTerminal": "Un terminale integrato per visualizzare i log del sistema in tempo reale. Utile per monitorare lo stato di connessione e capire se ci sono errori.",
+      "restartSystem": "Riavvia forzatamente i bot. Usalo se il sistema sembra bloccato o se i bot non si connettono ai canali (causerà una breve interruzione del servizio)."
+    },
+    "section5": {
+      "title": "5. Comandi Discord (Slash Commands)",
+      "p1": "Una volta configurato e attivato il sistema tramite questa interfaccia, puoi controllare la trasmissione direttamente da Discord:",
+      "cmdOnDuty": "Avvia il broadcasting audio. Il bot Listener entrerà nel canale sorgente e i bot Speaker si collegheranno ai canali di destinazione configurati.",
+      "cmdAtEase": "Ferma immediatamente la trasmissione. Tutti i bot si disconnetteranno dai rispettivi canali vocali."
+    },
+    "sectionAdmin": {
+      "title": "6. Pannello di Controllo Admin",
+      "p1": "L'accesso a questa sezione è riservato esclusivamente agli amministratori. Clicca su 'Admin Panel' nella Dashboard per accedere. L'interfaccia permette di gestire l'intera applicazione.",
+      "overview": "Panoramica: Visualizza le statistiche globali del sistema (utenti totali, server configurati, server attivi).",
+      "users": "Utenti: Gestisci l'accesso all'applicazione web. Puoi aggiungere nuovi utenti tramite il loro ID Discord, assegnare loro il ruolo di 'Admin' o 'Utente', e revocarne l'accesso.",
+      "system": "Sistema: Visualizza i log in tempo reale del bot e forza il riavvio del sistema (bot e API) in caso di anomalie."
+    }
+  },
+  "adminPanel": {
+    "title": "PANNELLO DI CONTROLLO ADMIN",
+    "backToDashboard": "TORNA ALLA DASHBOARD",
+    "tabs": {
+      "overview": "PANORAMICA",
+      "users": "UTENTI",
+      "system": "SISTEMA"
+    },
+    "overview": {
+      "totalUsers": "Utenti Totali",
+      "configuredGuilds": "Gilde Configurate",
+      "activeGuilds": "Gilde Attive"
+    },
+    "users": {
+      "addNewUser": "Aggiungi Nuovo Utente",
+      "discordId": "ID Discord",
+      "username": "Nome Utente",
+      "role": "Ruolo",
+      "roleUser": "Utente",
+      "roleAdmin": "Admin",
+      "add": "Aggiungi",
+      "addedAt": "Aggiunto il",
+      "actions": "Azioni",
+      "makeAdmin": "Rendi Admin",
+      "demote": "Rimuovi Admin",
+      "delete": "Elimina"
+    },
+    "system": {
+      "systemRestart": "Riavvio di Sistema",
+      "restartDesc": "Riavvia forzatamente i bot e le API. Causa una breve interruzione del servizio.",
+      "liveBotLogs": "LOG DEL BOT IN TEMPO REALE"
+    },
+    "alerts": {
+      "userAdded": "Utente aggiunto con successo",
+      "errorAdding": "Errore durante l'aggiunta",
+      "confirmRoleChange": "Vuoi cambiare il ruolo a",
+      "errorUpdating": "Errore durante l'aggiornamento",
+      "confirmDelete": "Sei sicuro di voler eliminare questo utente?",
+      "errorDeleting": "Errore durante l'eliminazione"
+    }
+  }
+}
