@@ -633,6 +633,7 @@ async function startIPCListener() {
 // Intercettazione globale per aggirare i blocchi di YouTube
 // Utilizza youtube-dl-exec (yt-dlp) per estrarre direttamente i flussi m4a
 // bypassando le API web e android che vengono attualmente bloccate (errore 403 o 400).
+/*
 onBeforeCreateStream(async (track, queryType, queue) => {
     const isYouTube = track.url.includes('youtube.com') || track.url.includes('youtu.be') || track.extractor?.identifier === 'com.retrouser955.discord-player.discord-player-youtubei';
     const isSpotify = track.url.includes('spotify.com') || track.extractor?.identifier === 'com.discord-player.spotifyextractor';
@@ -675,6 +676,7 @@ onBeforeCreateStream(async (track, queryType, queue) => {
     }
     return null;
 });
+*/
 
 async function searchWithFallback(player, query, requestedBy) {
     if (query.includes('youtube.com/playlist') || (query.includes('youtube.com/watch') && query.includes('list='))) {
@@ -740,7 +742,7 @@ async function startBots() {
         await player.extractors.loadMulti(DefaultExtractors);
         await player.extractors.register(YoutubeiExtractor, {
             streamOptions: {
-                useClient: 'ANDROID'
+                useClient: 'IOS'
             }
         });
         
