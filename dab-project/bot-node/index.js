@@ -761,7 +761,6 @@ async function searchWithFallback(player, query, requestedBy) {
 
 // START
 async function startBots() {
-    await startIPCListener();
     await registerCommands();
 
     console.log("Logging in Primary Bot...");
@@ -810,6 +809,12 @@ async function startBots() {
         musicPlayers.set(bot.user.id, player);
     }
     console.log("✅ Music Players inizializzati.");
+
+    // L'IPC listener va avviato DOPO che musicPlayers è completamente popolato,
+    // altrimenti i messaggi arrivano quando i player non sono ancora pronti.
+    console.log("Avvio IPC listener...");
+    await startIPCListener();
+    console.log("✅ IPC Listener avviato.");
 
     // Avvia il sync dello stato musicale su MongoDB
     startMusicStatusSync();
