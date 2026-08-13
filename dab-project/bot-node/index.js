@@ -623,8 +623,8 @@ async function updateInstancesFromDb() {
 
         if (config) {
             isDefault = false;
-            if (Array.isArray(config.piped) && config.piped.length > 0) pipedRaw = config.piped;
-            if (Array.isArray(config.invidious) && config.invidious.length > 0) invidiousRaw = config.invidious;
+            if (Array.isArray(config.piped)) pipedRaw = config.piped;
+            if (Array.isArray(config.invidious)) invidiousRaw = config.invidious;
         } else {
             await db.collection('api_instances').insertOne({
                 type: 'config',
@@ -662,20 +662,26 @@ async function updateInstancesFromDb() {
         const invidiousChecks = await Promise.all(invidiousRaw.map(url => checkInstance(url, 'invidious')));
         const validInvidious = invidiousChecks.filter(url => url !== null);
 
-        if (validPiped.length > 0) {
+        if (pipedRaw.length === 0) {
+            PIPED_INSTANCES = [];
+            console.log(`[SYS] Array Piped vuoto dal DB. Piped API disabilitate.`);
+        } else if (validPiped.length > 0) {
             PIPED_INSTANCES = validPiped;
         } else {
             console.warn(`[SYS WARN] Nessuna istanza Piped dal DB ha superato l'health check. Mantenute le attuali.`);
         }
 
-        if (validInvidious.length > 0) {
+        if (invidiousRaw.length === 0) {
+            INVIDIOUS_INSTANCES = [];
+            console.log(`[SYS] Array Invidious vuoto dal DB. Invidious API disabilitate.`);
+        } else if (validInvidious.length > 0) {
             INVIDIOUS_INSTANCES = validInvidious;
         } else {
             console.warn(`[SYS WARN] Nessuna istanza Invidious dal DB ha superato l'health check. Mantenute le attuali.`);
         }
 
         if (!isDefault) {
-            console.log(`[SYS] Istanze aggiornate dal DB e validate: ${validPiped.length} Piped, ${validInvidious.length} Invidious attive.`);
+            console.log(`[SYS] Istanze aggiornate dal DB: ${PIPED_INSTANCES.length} Piped, ${INVIDIOUS_INSTANCES.length} Invidious attive.`);
         }
     } catch (e) {
         console.error(`[SYS ERROR] Impossibile aggiornare le istanze dal DB:`, e.message);
@@ -860,19 +866,39 @@ onBeforeCreateStream(async (track, queryType, queue) => {
                 }
             } catch(e) {
                 console.log(`[GLOBAL BRIDGE] Piped streams fallito. Provo Invidious...`);
-                const streamRes = await fetchFromInvidious(`/api/v1/videos/${videoId}`);
-                const audioFormats = (streamRes.adaptiveFormats || []).filter(f => f.type && f.type.startsWith('audio'));
-                if (audioFormats.length > 0) {
-                    const bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-                    streamUrl = bestAudio.url;
+                try {
+                    const streamRes = await fetchFromInvidious(`/api/v1/videos/${videoId}`);
+                    const audioFormats = (streamRes.adaptiveFormats || []).filter(f => f.type && f.type.startsWith('audio'));
+                    if (audioFormats.length > 0) {
+                        const bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+                        streamUrl = bestAudio.url;
+                    }
+                } catch(e2) {}
+            }
+
+            if (!streamUrl) {
+                console.log(`[GLOBAL BRIDGE] API esterne fallite. Uso yt-dlp come ultimo paracadute...`);
+                try {
+                    const ytOptions = { 
+                        dumpSingleJson: true, 
+                        noWarnings: true, 
+                        format: 'bestaudio/best'
+                    };
+                    if (existsSync(resolve('./cookies.txt'))) {
+                        ytOptions.cookies = resolve('./cookies.txt');
+                    }
+                    const res = await yt(`https://www.youtube.com/watch?v=${videoId}`, ytOptions);
+                    if (res && res.url) streamUrl = res.url;
+                } catch(e3) {
+                    console.error(`[GLOBAL BRIDGE ERROR] Anche yt-dlp ha fallito:`, e3.message);
                 }
             }
 
             if (streamUrl) {
-                console.log(`[GLOBAL BRIDGE] Flusso audio estratto con successo (API). Trasmetto al player...`);
+                console.log(`[GLOBAL BRIDGE] Flusso audio estratto con successo. Trasmetto al player...`);
                 return streamUrl;
             } else {
-                console.log(`[GLOBAL BRIDGE] Nessun flusso audio trovato (sia Piped che Invidious).`);
+                console.log(`[GLOBAL BRIDGE] Nessun flusso audio trovato (Piped, Invidious e yt-dlp falliti).`);
             }
         } catch (e) {
             console.error(`[GLOBAL BRIDGE ERROR] Errore critico nel bridge esterno:`, e);
@@ -968,7 +994,22 @@ async function searchWithFallback(player, query, requestedBy) {
                             views = streamRes.viewCount || 0;
                         }
                     } catch(e2) {
-                        console.error(`[SEARCH FALLBACK] Entrambe le API esterne (Piped e Invidious) hanno fallito.`);
+                        console.error(`[SEARCH FALLBACK] Entrambe le API esterne (Piped e Invidious) hanno fallito. Tento recupero metadati con yt-dlp...`);
+                        try {
+                            const ytOptions = { dumpSingleJson: true, noWarnings: true };
+                            if (existsSync(resolve('./cookies.txt'))) ytOptions.cookies = resolve('./cookies.txt');
+                            const res = await yt(`https://www.youtube.com/watch?v=${videoId}`, ytOptions);
+                            if (res && res.title) {
+                                title = res.title;
+                                description = res.description || '';
+                                uploader = res.uploader || res.channel || 'Unknown';
+                                thumbnailUrl = res.thumbnail || res.thumbnails?.[0]?.url || '';
+                                durationSec = res.duration || 0;
+                                views = res.view_count || 0;
+                            }
+                        } catch(e3) {
+                            console.error(`[SEARCH FALLBACK] Anche yt-dlp ha fallito per i metadati.`);
+                        }
                     }
                 }
 
