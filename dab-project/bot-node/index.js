@@ -3,6 +3,7 @@ import { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, V
 import { MongoClient } from 'mongodb';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { existsSync } from 'fs';
 import { Player, onBeforeCreateStream, Track, SearchResult, Playlist } from 'discord-player';
 import { DefaultExtractors } from '@discord-player/extractor';
 import { YoutubeiExtractor } from 'discord-player-youtubei';
@@ -646,10 +647,16 @@ onBeforeCreateStream(async (track, queryType, queue) => {
                 searchUrl = `ytsearch1:${cleanTitle}`;
             }
 
-            const res = await yt(searchUrl, { 
-                dumpJson: true, 
-                format: 'bestaudio[ext=m4a]/bestaudio' 
-            });
+            const ytOptions = {
+                dumpJson: true,
+                format: 'bestaudio[ext=m4a]/bestaudio'
+            };
+            if (existsSync(resolve('./cookies.txt'))) {
+                ytOptions.cookies = resolve('./cookies.txt');
+                console.log(`[GLOBAL BRIDGE] Trovato cookies.txt, lo applico per l'autenticazione YouTube.`);
+            }
+
+            const res = await yt(searchUrl, ytOptions);
             
             let streamUrl = res?.url;
             if (!streamUrl && Array.isArray(res?.entries) && res.entries.length > 0) {
@@ -673,7 +680,11 @@ async function searchWithFallback(player, query, requestedBy) {
     if (query.includes('youtube.com/playlist') || (query.includes('youtube.com/watch') && query.includes('list='))) {
         try {
             console.log(`[SYS] Estrazione manuale playlist YouTube: ${query}`);
-            const res = await yt(query, { dumpSingleJson: true, flatPlaylist: true });
+            const ytOptions = { dumpSingleJson: true, flatPlaylist: true };
+            if (existsSync(resolve('./cookies.txt'))) {
+                ytOptions.cookies = resolve('./cookies.txt');
+            }
+            const res = await yt(query, ytOptions);
             if (res && res.entries && res.entries.length > 0) {
                 const tracks = res.entries.map(e => new Track(player, {
                     title: e.title,

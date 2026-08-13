@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm ci
 
 # Copia sorgenti
-COPY index.js ./
+COPY index.js cookies.tx[t] ./
 
 # Il bot non espone porte web
 CMD ["npm", "start"]
