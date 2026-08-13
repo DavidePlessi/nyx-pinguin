@@ -687,12 +687,13 @@ onBeforeCreateStream(async (track, queryType, queue) => {
             
             if (isSpotify) {
                 const cleanTitle = `${track.title} ${track.author}`.replace(/\[.*?\]|\(.*?\)/g, '').trim();
-                searchUrl = `ytsearch1:${cleanTitle}`;
+                searchUrl = `ytmsearch1:${cleanTitle}`;
             }
 
             const ytOptions = {
                 dumpJson: true,
-                format: 'bestaudio'
+                format: 'bestaudio',
+                sourceAddress: '::'
             };
 
             const res = await yt(searchUrl, ytOptions);
@@ -799,57 +800,34 @@ async function searchWithFallback(player, query, requestedBy) {
         }
     }
 
-    // 4. Ultimo tentativo: cerca su SoundCloud per titolo (usando OEmbed per recuperare il titolo se IP bloccato)
+    // 4. Ultimo tentativo: cerca su SoundCloud solo come extrema ratio
     try {
-        let searchTerm = query;
-        if (isYouTubeUrl) {
-            console.log(`[SEARCH FALLBACK] Recupero titolo pulito tramite OEmbed API per aggirare blocco IP...`);
-            const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${query}&format=json`);
-            if (oembedRes.ok) {
-                const oembedData = await oembedRes.json();
-                searchTerm = `${oembedData.title} ${oembedData.author_name.replace(' - Topic', '')}`.trim();
-                console.log(`[SEARCH FALLBACK] OEmbed ha restituito il titolo: "${searchTerm}"`);
-            } else {
-                console.warn(`[SEARCH FALLBACK] OEmbed fallito, uso URL grezzo (probabilità di errore alta).`);
-            }
-        }
-        
-        console.log(`[SEARCH FALLBACK] Tutti i metodi YouTube falliti. Provo SoundCloud tramite play-dl con: "${searchTerm}"`);
+        console.log(`[SEARCH FALLBACK] Metodi principali falliti. Ricerca fallback su SoundCloud per: "${query}"`);
         
         const play = await import('play-dl');
         const clientId = await play.getFreeClientID();
         await play.setToken({ soundcloud: { client_id: clientId } });
         
-        const scResults = await play.search(searchTerm, { source: { soundcloud: 'tracks' }, limit: 10 });
+        const scResults = await play.search(query, { source: { soundcloud: 'tracks' }, limit: 5 });
+        
         if (scResults && scResults.length > 0) {
-            // Filtra risultati indesiderati se non richiesti esplicitamente
-            const unwantedKeywords = ['remix', 'slowed', 'reverb', 'nightcore', 'mashup', 'cover', 'live', 'instrumental', 'karaoke', 'type beat'];
-            const searchLower = searchTerm.toLowerCase();
+            const searchLower = query.toLowerCase();
+            const unwanted = ['remix', 'slowed', 'cover', 'bootleg'];
             
-            let bestTrack = null;
-            for (const track of scResults) {
+            // Trova la prima traccia che non contiene parole indesiderate (a meno che non siano già nella query)
+            let bestTrack = scResults.find(track => {
                 const titleLower = track.name.toLowerCase();
-                // Se la traccia contiene una parola indesiderata e la parola NON è nel termine di ricerca, saltala
-                const hasUnwanted = unwantedKeywords.some(kw => titleLower.includes(kw) && !searchLower.includes(kw));
-                if (!hasUnwanted) {
-                    bestTrack = track;
-                    break;
-                }
-            }
+                const hasUnwanted = unwanted.some(kw => titleLower.includes(kw) && !searchLower.includes(kw));
+                return !hasUnwanted;
+            }) || scResults[0]; // Fallback al primo risultato se tutti sono filtrati
             
-            // Se tutte le tracce hanno parole indesiderate, prendi la prima
-            if (!bestTrack) bestTrack = scResults[0];
+            console.log(`[SEARCH FALLBACK] Trovato su SoundCloud: ${bestTrack.name}`);
             
-            console.log(`[SEARCH FALLBACK] Trovato su SoundCloud (miglior match): ${bestTrack.name}`);
-            
-            // Crea il SearchResult passando l'URL della traccia a discord-player
             const finalResult = await player.search(bestTrack.url, { requestedBy, searchEngine: 'soundcloud' });
-            if (finalResult.hasTracks()) {
-                return finalResult;
-            }
+            if (finalResult.hasTracks()) return finalResult;
         }
     } catch (e) {
-        console.error(`[SEARCH FALLBACK] Anche SoundCloud ha fallito:`, e.message || e);
+        console.error(`[SEARCH FALLBACK] Errore durante il fallback su SoundCloud:`, e.message || e);
     }
 
     console.error(`[SEARCH FALLBACK] Nessun risultato trovato per: ${query}`);
@@ -875,7 +853,7 @@ async function startBots() {
         await player.extractors.loadMulti(DefaultExtractors);
         await player.extractors.register(YoutubeiExtractor, {
             streamOptions: {
-                useClient: 'WEB'
+                useClient: 'ANDROID' // o 'TV_EMBEDDED'. (TODO: Implementare poToken in futuro per una maggiore stabilità)
             }
         });
         
