@@ -716,6 +716,7 @@ onBeforeCreateStream(async (track, queryType, queue) => {
 });
 
 async function searchWithFallback(player, query, requestedBy) {
+    // 1. Playlist YouTube: usa sempre yt-dlp per estrazione completa
     if (query.includes('youtube.com/playlist') || (query.includes('youtube.com/watch') && query.includes('list='))) {
         try {
             console.log(`[SYS] Estrazione manuale playlist YouTube: ${query}`);
@@ -756,7 +757,66 @@ async function searchWithFallback(player, query, requestedBy) {
             console.error(`Errore estrazione manuale playlist:`, e);
         }
     }
-    return await player.search(query, { requestedBy });
+
+    // 2. Prova la ricerca nativa di discord-player (YoutubeiExtractor, SoundCloud, ecc.)
+    const nativeResult = await player.search(query, { requestedBy });
+    if (nativeResult.hasTracks()) {
+        return nativeResult;
+    }
+
+    // 3. Se la ricerca nativa fallisce, usa yt-dlp come fallback per i metadati
+    const isYouTubeUrl = query.includes('youtube.com') || query.includes('youtu.be');
+    if (isYouTubeUrl) {
+        try {
+            console.log(`[SEARCH FALLBACK] YoutubeiExtractor ha fallito. Uso yt-dlp per estrarre i metadati di: ${query}`);
+            const ytOptions = { dumpJson: true, format: 'bestaudio' };
+            const res = await yt(query, ytOptions);
+            if (res && res.title) {
+                const duration = res.duration 
+                    ? new Date(res.duration * 1000).toISOString().substring(11, 19).replace(/^00:/, '') 
+                    : '0:00';
+                const track = new Track(player, {
+                    title: res.title,
+                    description: res.description || '',
+                    author: res.uploader || res.channel || 'Unknown',
+                    url: res.webpage_url || res.original_url || query,
+                    thumbnail: res.thumbnail || res.thumbnails?.[0]?.url || '',
+                    duration: duration,
+                    views: res.view_count || 0,
+                    requestedBy: requestedBy,
+                    source: 'youtube'
+                });
+                console.log(`[SEARCH FALLBACK] Metadati estratti con yt-dlp: "${res.title}" (${duration})`);
+                return new SearchResult(player, {
+                    query: query,
+                    queryType: 'youtubeVideo',
+                    tracks: [track],
+                    requestedBy: requestedBy
+                });
+            }
+        } catch (e) {
+            console.error(`[SEARCH FALLBACK] Anche yt-dlp ha fallito:`, e.message || e);
+        }
+    }
+
+    // 4. Ultimo tentativo: cerca su SoundCloud per titolo
+    try {
+        const searchTerm = isYouTubeUrl ? query.split('?')[0].split('/').pop() : query;
+        console.log(`[SEARCH FALLBACK] Tutti i metodi YouTube falliti. Provo SoundCloud con: "${query}"`);
+        const scResult = await player.search(query, { 
+            requestedBy, 
+            searchEngine: 'soundcloudSearch' 
+        });
+        if (scResult.hasTracks()) {
+            console.log(`[SEARCH FALLBACK] Trovato su SoundCloud: ${scResult.tracks[0].title}`);
+            return scResult;
+        }
+    } catch (e) {
+        console.error(`[SEARCH FALLBACK] Anche SoundCloud ha fallito:`, e.message || e);
+    }
+
+    console.error(`[SEARCH FALLBACK] Nessun risultato trovato per: ${query}`);
+    return nativeResult; // Restituisce il risultato vuoto originale
 }
 
 // START
