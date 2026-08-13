@@ -412,13 +412,14 @@ async function handleIpc(data) {
         let selectedPlayer = null;
 
         if (targetBotId) {
-            selectedBot = auxBots.find(b => b.user.id === targetBotId);
+            selectedBot = auxBots.find(b => b.user?.id === targetBotId);
             if (selectedBot) selectedPlayer = musicPlayers.get(targetBotId);
         }
 
         if (!selectedPlayer && (command === 'play' || command === 'insert')) {
-            // Seleziona un bot (come nel comando chat)
+            // Seleziona un bot (come nel comando chat) - skip bot non ancora loggati
             for (const bot of auxBots) {
+                if (!bot.user?.id) continue; // Bot non ancora loggato
                 const p = musicPlayers.get(bot.user.id);
                 const queue = p?.nodes.get(guildId);
                 if (queue && queue.channel.id === data.voice_channel_id) {
@@ -429,6 +430,7 @@ async function handleIpc(data) {
             }
             if (!selectedBot) {
                 for (const bot of auxBots) {
+                    if (!bot.user?.id) continue; // Bot non ancora loggato
                     const p = musicPlayers.get(bot.user.id);
                     const queue = p?.nodes.get(guildId);
                     const nativeConnection = getVoiceConnection(guildId, bot.user.id);
@@ -442,6 +444,7 @@ async function handleIpc(data) {
         } else if (!selectedPlayer) {
             // Per gli altri comandi senza targetBotId, cerca il primo player con una coda in questo guild
             for (const bot of auxBots) {
+                if (!bot.user?.id) continue; // Bot non ancora loggato
                 const p = musicPlayers.get(bot.user.id);
                 if (p?.nodes.get(guildId)) {
                     selectedBot = bot;
