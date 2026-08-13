@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List
-from app.models.models import AdminUser, GuildConfig, BotLog
+from app.models.models import AdminUser, GuildConfig, BotLog, ApiInstances
 from app.api.oauth import get_current_admin
 
 router = APIRouter()
@@ -67,3 +67,26 @@ async def delete_user(discord_id: str, admin: AdminUser = Depends(require_admin)
     
     await target_user.delete()
     return {"status": "success", "message": "Utente rimosso."}
+
+class ApiInstancesSchema(BaseModel):
+    piped: List[str]
+    invidious: List[str]
+
+@router.get("/instances")
+async def get_instances(admin: AdminUser = Depends(require_admin)):
+    config = await ApiInstances.find_one(ApiInstances.type == "config")
+    if not config:
+        return {"piped": [], "invidious": []}
+    return {"piped": config.piped, "invidious": config.invidious}
+
+@router.put("/instances")
+async def update_instances(data: ApiInstancesSchema, admin: AdminUser = Depends(require_admin)):
+    config = await ApiInstances.find_one(ApiInstances.type == "config")
+    if not config:
+        config = ApiInstances(type="config", piped=data.piped, invidious=data.invidious)
+        await config.insert()
+    else:
+        config.piped = data.piped
+        config.invidious = data.invidious
+        await config.save()
+    return {"status": "success"}

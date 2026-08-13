@@ -37,3 +37,11 @@ class GuildMusicStatus(Document):
 
     class Settings:
         name = "guild_music_status"
+
+class ApiInstances(Document):
+    type: str = "config"
+    piped: List[str] = []
+    invidious: List[str] = []
+
+    class Settings:
+        name = "api_instances"

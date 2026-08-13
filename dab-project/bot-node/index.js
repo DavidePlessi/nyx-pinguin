@@ -597,10 +597,98 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
+let PIPED_INSTANCES = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.moomoo.me',
+    'https://piped-api.lunar.icu',
+    'https://pipedapi.syncpundit.io'
+];
+
+let INVIDIOUS_INSTANCES = [
+    'https://invidious.protokolla.fi',
+    'https://invidious.nerdvpn.de',
+    'https://invidious.slipfox.xyz',
+    'https://inv.tux.pizza'
+];
+
+async function updateInstancesFromDb() {
+    if (!dbClient) return;
+    try {
+        const db = dbClient.db(DB_NAME);
+        const config = await db.collection('api_instances').findOne({ type: 'config' });
+        
+        let pipedRaw = PIPED_INSTANCES;
+        let invidiousRaw = INVIDIOUS_INSTANCES;
+        let isDefault = true;
+
+        if (config) {
+            isDefault = false;
+            if (Array.isArray(config.piped) && config.piped.length > 0) pipedRaw = config.piped;
+            if (Array.isArray(config.invidious) && config.invidious.length > 0) invidiousRaw = config.invidious;
+        } else {
+            await db.collection('api_instances').insertOne({
+                type: 'config',
+                piped: PIPED_INSTANCES,
+                invidious: INVIDIOUS_INSTANCES
+            });
+            console.log(`[SYS] Creata configurazione api_instances di default nel DB.`);
+        }
+
+        // Helper per verificare lo stato di un'istanza
+        const checkInstance = async (url, type) => {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+                
+                // Testiamo con un video generico, es. "Me at the zoo" (jNQXAC9IVRw)
+                const endpoint = type === 'piped' ? '/streams/jNQXAC9IVRw' : '/api/v1/videos/jNQXAC9IVRw';
+                const res = await fetch(`${url}${endpoint}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.error) return null; // L'istanza restituisce 200 ma contiene errore
+                    return url;
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const pipedChecks = await Promise.all(pipedRaw.map(url => checkInstance(url, 'piped')));
+        const validPiped = pipedChecks.filter(url => url !== null);
+        
+        const invidiousChecks = await Promise.all(invidiousRaw.map(url => checkInstance(url, 'invidious')));
+        const validInvidious = invidiousChecks.filter(url => url !== null);
+
+        if (validPiped.length > 0) {
+            PIPED_INSTANCES = validPiped;
+        } else {
+            console.warn(`[SYS WARN] Nessuna istanza Piped dal DB ha superato l'health check. Mantenute le attuali.`);
+        }
+
+        if (validInvidious.length > 0) {
+            INVIDIOUS_INSTANCES = validInvidious;
+        } else {
+            console.warn(`[SYS WARN] Nessuna istanza Invidious dal DB ha superato l'health check. Mantenute le attuali.`);
+        }
+
+        if (!isDefault) {
+            console.log(`[SYS] Istanze aggiornate dal DB e validate: ${validPiped.length} Piped, ${validInvidious.length} Invidious attive.`);
+        }
+    } catch (e) {
+        console.error(`[SYS ERROR] Impossibile aggiornare le istanze dal DB:`, e.message);
+    }
+}
+
 async function startIPCListener() {
     dbClient = new MongoClient(MONGO_URI);
     await dbClient.connect();
     console.log("✅ Connected to MongoDB");
+
+    await updateInstancesFromDb();
+    setInterval(updateInstancesFromDb, 10 * 60 * 1000);
 
     const db = dbClient.db(DB_NAME);
     const logCollection = db.collection('bot_logs');
@@ -672,45 +760,122 @@ async function startIPCListener() {
         await handleIpc(doc.data);
     });
 }
+async function fetchFromPiped(endpoint) {
+    for (const instance of PIPED_INSTANCES) {
+        try {
+            const url = `${instance}${endpoint}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+            
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.warn(`[PIPED] Istanza ${instance} fallita per ${endpoint}. Provo la successiva...`);
+        }
+    }
+    throw new Error("Tutte le istanze Piped hanno fallito.");
+}
+
+async function fetchFromInvidious(endpoint) {
+    for (const instance of INVIDIOUS_INSTANCES) {
+        try {
+            const url = `${instance}${endpoint}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+            
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.warn(`[INVIDIOUS] Istanza ${instance} fallita per ${endpoint}. Provo la successiva...`);
+        }
+    }
+    throw new Error("Tutte le istanze Invidious hanno fallito.");
+}
+
 // Intercettazione globale per aggirare i blocchi IP di YouTube sui server.
-// Utilizziamo yt-dlp per estrarre direttamente i flussi m4a/webm,
-// bypassando i problemi di HLS (m3u8) di SoundCloud e i blocchi di discord-player.
-// NOTA: I cookie NON vengono usati di proposito, perché causano il blocco dell'account e l'errore di firma JS!
+// Utilizziamo le API esterne per estrarre direttamente i flussi audio, bypassando i blocchi di Google.
 onBeforeCreateStream(async (track, queryType, queue) => {
     const isYouTube = track.url.includes('youtube.com') || track.url.includes('youtu.be') || track.extractor?.identifier === 'com.retrouser955.discord-player.discord-player-youtubei';
     const isSpotify = track.url.includes('spotify.com') || track.extractor?.identifier === 'com.discord-player.spotifyextractor';
     
     if (isYouTube || isSpotify) {
         try {
-            console.log(`[GLOBAL BRIDGE] Intercettata traccia ${isSpotify ? 'Spotify' : 'YouTube'}: ${track.title}. Uso yt-dlp per estrarre il flusso...`);
-            let searchUrl = track.url;
+            console.log(`[GLOBAL BRIDGE] Intercettata traccia ${isSpotify ? 'Spotify' : 'YouTube'}: ${track.title}. Uso API esterne per estrarre il flusso...`);
             
+            let videoId = null;
+
             if (isSpotify) {
                 const cleanTitle = `${track.title} ${track.author}`.replace(/\[.*?\]|\(.*?\)/g, '').trim();
-                searchUrl = `ytmsearch1:${cleanTitle}`;
+                console.log(`[GLOBAL BRIDGE] Ricerca API per: "${cleanTitle}"`);
+                try {
+                    const searchRes = await fetchFromPiped(`/search?q=${encodeURIComponent(cleanTitle)}&filter=music_songs`);
+                    const firstResult = searchRes.items?.find(i => i.url.startsWith('/watch?v='));
+                    if (firstResult) videoId = firstResult.url.split('?v=')[1];
+                } catch(e) {
+                    console.log(`[GLOBAL BRIDGE] Ricerca Piped fallita. Provo Invidious...`);
+                    const searchRes = await fetchFromInvidious(`/api/v1/search?q=${encodeURIComponent(cleanTitle)}&type=video`);
+                    if (searchRes && searchRes.length > 0) videoId = searchRes[0].videoId;
+                }
+            } else {
+                // Estrai videoId da YouTube URL
+                if (track.url.includes('youtu.be/')) {
+                    videoId = track.url.split('youtu.be/')[1].split('?')[0];
+                } else if (track.url.includes('v=')) {
+                    try { videoId = new URL(track.url).searchParams.get('v'); } catch(e){}
+                } 
+                
+                if (!videoId) {
+                    // Fallback se url non standard
+                    try {
+                        const searchRes = await fetchFromPiped(`/search?q=${encodeURIComponent(track.title)}&filter=music_songs`);
+                        const firstResult = searchRes.items?.find(i => i.url.startsWith('/watch?v='));
+                        if (firstResult) videoId = firstResult.url.split('?v=')[1];
+                    } catch(e) {
+                        const searchRes = await fetchFromInvidious(`/api/v1/search?q=${encodeURIComponent(track.title)}&type=video`);
+                        if (searchRes && searchRes.length > 0) videoId = searchRes[0].videoId;
+                    }
+                }
             }
 
-            const ytOptions = {
-                dumpJson: true,
-                format: 'bestaudio',
-                sourceAddress: '::'
-            };
+            if (!videoId) {
+                console.log(`[GLOBAL BRIDGE] Impossibile risolvere videoId per: ${track.title}`);
+                return null;
+            }
 
-            const res = await yt(searchUrl, ytOptions);
-            
-            let streamUrl = res?.url;
-            if (!streamUrl && Array.isArray(res?.entries) && res.entries.length > 0) {
-                 streamUrl = res.entries[0].url;
+            console.log(`[GLOBAL BRIDGE] VideoId risolto: ${videoId}. Richiedo streams...`);
+            let streamUrl = null;
+            try {
+                const streamRes = await fetchFromPiped(`/streams/${videoId}`);
+                if (streamRes && streamRes.audioStreams && streamRes.audioStreams.length > 0) {
+                    const bestAudio = streamRes.audioStreams.sort((a, b) => b.bitrate - a.bitrate)[0];
+                    streamUrl = bestAudio.url;
+                }
+            } catch(e) {
+                console.log(`[GLOBAL BRIDGE] Piped streams fallito. Provo Invidious...`);
+                const streamRes = await fetchFromInvidious(`/api/v1/videos/${videoId}`);
+                const audioFormats = (streamRes.adaptiveFormats || []).filter(f => f.type && f.type.startsWith('audio'));
+                if (audioFormats.length > 0) {
+                    const bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+                    streamUrl = bestAudio.url;
+                }
             }
 
             if (streamUrl) {
-                console.log(`[GLOBAL BRIDGE] Flusso audio estratto con successo (url). Trasmetto al player...`);
+                console.log(`[GLOBAL BRIDGE] Flusso audio estratto con successo (API). Trasmetto al player...`);
                 return streamUrl;
             } else {
-                console.log(`[GLOBAL BRIDGE] Nessun flusso estratto da yt-dlp.`);
+                console.log(`[GLOBAL BRIDGE] Nessun flusso audio trovato (sia Piped che Invidious).`);
             }
         } catch (e) {
-            console.error(`[GLOBAL BRIDGE ERROR] Errore critico nel bridge yt-dlp:`, e);
+            console.error(`[GLOBAL BRIDGE ERROR] Errore critico nel bridge esterno:`, e);
         }
     }
     return null;
@@ -765,69 +930,75 @@ async function searchWithFallback(player, query, requestedBy) {
         return nativeResult;
     }
 
-    // 3. Se la ricerca nativa fallisce, usa yt-dlp come fallback per i metadati
+    // 3. Se la ricerca nativa fallisce, usa Piped API come fallback per i metadati
     const isYouTubeUrl = query.includes('youtube.com') || query.includes('youtu.be');
     if (isYouTubeUrl) {
         try {
-            console.log(`[SEARCH FALLBACK] YoutubeiExtractor ha fallito. Uso yt-dlp per estrarre i metadati di: ${query}`);
-            const ytOptions = { dumpJson: true, format: 'bestaudio' };
-            const res = await yt(query, ytOptions);
-            if (res && res.title) {
-                const duration = res.duration 
-                    ? new Date(res.duration * 1000).toISOString().substring(11, 19).replace(/^00:/, '') 
-                    : '0:00';
-                const track = new Track(player, {
-                    title: res.title,
-                    description: res.description || '',
-                    author: res.uploader || res.channel || 'Unknown',
-                    url: res.webpage_url || res.original_url || query,
-                    thumbnail: res.thumbnail || res.thumbnails?.[0]?.url || '',
-                    duration: duration,
-                    views: res.view_count || 0,
-                    requestedBy: requestedBy,
-                    source: 'youtube'
-                });
-                console.log(`[SEARCH FALLBACK] Metadati estratti con yt-dlp: "${res.title}" (${duration})`);
-                return new SearchResult(player, {
-                    query: query,
-                    queryType: 'youtubeVideo',
-                    tracks: [track],
-                    requestedBy: requestedBy
-                });
+            console.log(`[SEARCH FALLBACK] YoutubeiExtractor ha fallito. Uso API Esterne per estrarre i metadati di: ${query}`);
+            let videoId = null;
+            if (query.includes('youtu.be/')) {
+                videoId = query.split('youtu.be/')[1].split('?')[0];
+            } else if (query.includes('v=')) {
+                try { videoId = new URL(query).searchParams.get('v'); } catch(e){}
+            }
+
+            if (videoId) {
+                let streamRes = null;
+                let title, description, uploader, thumbnailUrl, durationSec, views;
+                
+                try {
+                    streamRes = await fetchFromPiped(`/streams/${videoId}`);
+                    if (streamRes && streamRes.title) {
+                        title = streamRes.title;
+                        description = streamRes.description || '';
+                        uploader = streamRes.uploader || 'Unknown';
+                        thumbnailUrl = streamRes.thumbnailUrl || '';
+                        durationSec = streamRes.duration || 0;
+                        views = streamRes.views || 0;
+                    }
+                } catch(e) {
+                    try {
+                        streamRes = await fetchFromInvidious(`/api/v1/videos/${videoId}`);
+                        if (streamRes && streamRes.title) {
+                            title = streamRes.title;
+                            description = streamRes.description || '';
+                            uploader = streamRes.author || 'Unknown';
+                            thumbnailUrl = streamRes.videoThumbnails?.[0]?.url || '';
+                            durationSec = streamRes.lengthSeconds || 0;
+                            views = streamRes.viewCount || 0;
+                        }
+                    } catch(e2) {
+                        console.error(`[SEARCH FALLBACK] Entrambe le API esterne (Piped e Invidious) hanno fallito.`);
+                    }
+                }
+
+                if (title) {
+                    const duration = durationSec > 0 
+                        ? new Date(durationSec * 1000).toISOString().substring(11, 19).replace(/^00:/, '') 
+                        : '0:00';
+                    const track = new Track(player, {
+                        title: title,
+                        description: description,
+                        author: uploader,
+                        url: `https://www.youtube.com/watch?v=${videoId}`,
+                        thumbnail: thumbnailUrl,
+                        duration: duration,
+                        views: views,
+                        requestedBy: requestedBy,
+                        source: 'youtube'
+                    });
+                    console.log(`[SEARCH FALLBACK] Metadati estratti con successo: "${title}" (${duration})`);
+                    return new SearchResult(player, {
+                        query: query,
+                        queryType: 'youtubeVideo',
+                        tracks: [track],
+                        requestedBy: requestedBy
+                    });
+                }
             }
         } catch (e) {
-            console.error(`[SEARCH FALLBACK] Anche yt-dlp ha fallito:`, e.message || e);
+            console.error(`[SEARCH FALLBACK] Fallito il recupero dei metadati API:`, e.message || e);
         }
-    }
-
-    // 4. Ultimo tentativo: cerca su SoundCloud solo come extrema ratio
-    try {
-        console.log(`[SEARCH FALLBACK] Metodi principali falliti. Ricerca fallback su SoundCloud per: "${query}"`);
-        
-        const play = await import('play-dl');
-        const clientId = await play.getFreeClientID();
-        await play.setToken({ soundcloud: { client_id: clientId } });
-        
-        const scResults = await play.search(query, { source: { soundcloud: 'tracks' }, limit: 5 });
-        
-        if (scResults && scResults.length > 0) {
-            const searchLower = query.toLowerCase();
-            const unwanted = ['remix', 'slowed', 'cover', 'bootleg'];
-            
-            // Trova la prima traccia che non contiene parole indesiderate (a meno che non siano già nella query)
-            let bestTrack = scResults.find(track => {
-                const titleLower = track.name.toLowerCase();
-                const hasUnwanted = unwanted.some(kw => titleLower.includes(kw) && !searchLower.includes(kw));
-                return !hasUnwanted;
-            }) || scResults[0]; // Fallback al primo risultato se tutti sono filtrati
-            
-            console.log(`[SEARCH FALLBACK] Trovato su SoundCloud: ${bestTrack.name}`);
-            
-            const finalResult = await player.search(bestTrack.url, { requestedBy, searchEngine: 'soundcloud' });
-            if (finalResult.hasTracks()) return finalResult;
-        }
-    } catch (e) {
-        console.error(`[SEARCH FALLBACK] Errore durante il fallback su SoundCloud:`, e.message || e);
     }
 
     console.error(`[SEARCH FALLBACK] Nessun risultato trovato per: ${query}`);

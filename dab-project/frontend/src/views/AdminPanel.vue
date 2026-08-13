@@ -8,10 +8,15 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || ''
 const sessionToken = ref<string | null>(localStorage.getItem('dab_session_token'))
 const router = useRouter()
 
-const activeTab = ref('overview') // 'overview', 'users', 'system'
+const activeTab = ref('overview') // 'overview', 'users', 'system', 'api_instances'
 
 const isLoading = ref(false)
 //const error = ref('')
+
+const apiInstances = ref({
+  piped: '',
+  invidious: ''
+})
 
 const stats = ref({
   total_users: 0,
@@ -98,6 +103,49 @@ const fetchLogs = async () => {
     if (res.ok) logs.value = await res.json()
   } catch (e) {
     console.error("Failed to fetch logs", e)
+  }
+}
+
+const fetchInstances = async () => {
+  if (activeTab.value !== 'api_instances') return
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/admin/instances`, {
+      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      apiInstances.value.piped = (data.piped || []).join('\n')
+      apiInstances.value.invidious = (data.invidious || []).join('\n')
+    }
+  } catch (e) {
+    console.error("Failed to fetch instances", e)
+  }
+}
+
+const saveInstances = async () => {
+  isLoading.value = true
+  try {
+    const pipedArr = apiInstances.value.piped.split('\n').map(s => s.trim()).filter(s => s)
+    const invidiousArr = apiInstances.value.invidious.split('\n').map(s => s.trim()).filter(s => s)
+    
+    const res = await fetch(`${BACKEND_URL}/api/admin/instances`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken.value}`
+      },
+      body: JSON.stringify({ piped: pipedArr, invidious: invidiousArr })
+    })
+    
+    if (res.ok) {
+      await showAlert('Istanze API salvate con successo!', 'SUCCESS')
+    } else {
+      await showAlert('Errore durante il salvataggio delle istanze.', 'ERROR')
+    }
+  } catch (e) {
+    await showAlert('Network error', 'ERROR')
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -203,6 +251,7 @@ const changeTab = (tab: string) => {
     }
     if (tab === 'overview') fetchStats()
     if (tab === 'users') fetchUsers()
+    if (tab === 'api_instances') fetchInstances()
   }
 }
 
@@ -276,6 +325,12 @@ onUnmounted(() => {
         :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'system' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
       >
         SYSTEM
+      </button>
+      <button 
+        @click="changeTab('api_instances')"
+        :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'api_instances' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
+      >
+        API INSTANCES
       </button>
     </div>
 
@@ -390,6 +445,43 @@ onUnmounted(() => {
           </div>
           <div v-if="logs.length === 0" class="text-gray-600 italic">{{ t('dashboard.noLogsAvailable') }}</div>
         </div>
+      </div>
+    </div>
+
+    <!-- API INSTANCES TAB -->
+    <div v-if="activeTab === 'api_instances'" class="space-y-6 animate-fade-in">
+      <div class="bg-gray-900/50 border border-gray-800 p-6 rounded">
+        <h3 class="font-rajdhani text-xl text-cyber-cyan mb-4">API Instances Configuration</h3>
+        <p class="text-gray-400 text-sm mb-6">Inserisci un URL per riga. Il bot sincronizzerà queste liste ogni 10 minuti per aggirare i blocchi IP.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block font-rajdhani text-cyber-purple mb-2">Piped Instances (Primary)</label>
+            <textarea 
+              v-model="apiInstances.piped" 
+              rows="8" 
+              class="neon-input w-full font-mono text-sm bg-gray-900/50 resize-y"
+              placeholder="https://pipedapi.kavin.rocks&#10;https://pipedapi.moomoo.me"
+            ></textarea>
+          </div>
+          <div>
+            <label class="block font-rajdhani text-cyber-pink mb-2">Invidious Instances (Fallback)</label>
+            <textarea 
+              v-model="apiInstances.invidious" 
+              rows="8" 
+              class="neon-input w-full font-mono text-sm bg-gray-900/50 resize-y"
+              placeholder="https://invidious.nerdvpn.de&#10;https://inv.tux.pizza"
+            ></textarea>
+          </div>
+        </div>
+        
+        <button 
+          @click="saveInstances" 
+          :disabled="isLoading" 
+          class="neon-btn-primary px-8 py-2 w-full md:w-auto"
+        >
+          {{ isLoading ? 'SALVATAGGIO...' : 'SALVA ISTANZE' }}
+        </button>
       </div>
     </div>
   </div>
