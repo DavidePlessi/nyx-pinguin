@@ -184,7 +184,12 @@ async function handleMusicCommand(interaction) {
             const { track } = await selectedPlayer.play(botVoiceChannel, searchResult, {
                 nodeOptions: { 
                     metadata: interaction.channel,
-                    bufferingTimeout: 15000
+                    bufferingTimeout: 15000,
+                    ffmpegArgs: [
+                        '-reconnect', '1',
+                        '-reconnect_streamed', '1',
+                        '-reconnect_delay_max', '5'
+                    ]
                 },
                 requestedBy: interaction.user
             });
@@ -470,7 +475,12 @@ async function handleIpc(data) {
                             const { track } = await selectedPlayer.play(vc, searchResult, {
                                 nodeOptions: { 
                                     metadata: null,
-                                    bufferingTimeout: 15000
+                                    bufferingTimeout: 15000,
+                                    ffmpegArgs: [
+                                        '-reconnect', '1',
+                                        '-reconnect_streamed', '1',
+                                        '-reconnect_delay_max', '5'
+                                    ]
                                 },
                                 requestedBy: primaryBot.user
                             });
