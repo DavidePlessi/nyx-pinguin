@@ -182,7 +182,10 @@ async function handleMusicCommand(interaction) {
             }
 
             const { track } = await selectedPlayer.play(botVoiceChannel, searchResult, {
-                nodeOptions: { metadata: interaction.channel },
+                nodeOptions: { 
+                    metadata: interaction.channel,
+                    bufferingTimeout: 15000
+                },
                 requestedBy: interaction.user
             });
             
@@ -465,7 +468,10 @@ async function handleIpc(data) {
                         if (searchResult.hasTracks()) {
                             const insert = command === 'insert';
                             const { track } = await selectedPlayer.play(vc, searchResult, {
-                                nodeOptions: { metadata: null },
+                                nodeOptions: { 
+                                    metadata: null,
+                                    bufferingTimeout: 15000
+                                },
                                 requestedBy: primaryBot.user
                             });
 
