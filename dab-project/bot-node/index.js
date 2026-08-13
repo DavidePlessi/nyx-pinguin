@@ -636,53 +636,39 @@ async function startIPCListener() {
         await handleIpc(doc.data);
     });
 }
-// Intercettazione globale per aggirare i blocchi di YouTube
-// Utilizza youtube-dl-exec (yt-dlp) per estrarre direttamente i flussi m4a
-// bypassando le API web e android che vengono attualmente bloccate (errore 403 o 400).
-/*
+// Intercettazione globale per aggirare i blocchi IP di YouTube sui server.
+// Cerca automaticamente la traccia su SoundCloud (che non ha blocchi IP) e la riproduce,
+// mantenendo però i metadata originali (titolo, autore, copertina) di YouTube/Spotify nella UI.
 onBeforeCreateStream(async (track, queryType, queue) => {
     const isYouTube = track.url.includes('youtube.com') || track.url.includes('youtu.be') || track.extractor?.identifier === 'com.retrouser955.discord-player.discord-player-youtubei';
     const isSpotify = track.url.includes('spotify.com') || track.extractor?.identifier === 'com.discord-player.spotifyextractor';
     
     if (isYouTube || isSpotify) {
         try {
-            console.log(`[GLOBAL BRIDGE] Intercettata traccia ${isSpotify ? 'Spotify' : 'YouTube'}: ${track.title}. Uso youtube-dl per estrarre il flusso...`);
-            let searchUrl = track.url;
+            console.log(`[GLOBAL BRIDGE] Intercettata traccia ${isSpotify ? 'Spotify' : 'YouTube'}: ${track.title}. Bridging su SoundCloud per evitare blocchi IP...`);
+            // Pulizia del titolo per una ricerca migliore
+            const cleanTitle = `${track.title} ${track.author}`.replace(/\[.*?\]|\(.*?\)/g, '').trim();
             
-            if (isSpotify) {
-                const cleanTitle = `${track.title} ${track.author}`.replace(/\[.*?\]|\(.*?\)/g, '').trim();
-                searchUrl = `ytsearch1:${cleanTitle}`;
-            }
-
-            const ytOptions = {
-                dumpJson: true,
-                format: 'bestaudio[ext=m4a]/bestaudio'
-            };
-            if (existsSync(resolve('./cookies.txt'))) {
-                ytOptions.cookies = resolve('./cookies.txt');
-                console.log(`[GLOBAL BRIDGE] Trovato cookies.txt, lo applico per l'autenticazione YouTube.`);
-            }
-
-            const res = await yt(searchUrl, ytOptions);
+            const searchResult = await queue.player.search(cleanTitle, {
+                searchEngine: 'soundcloudSearch',
+                requestedBy: track.requestedBy
+            });
             
-            let streamUrl = res?.url;
-            if (!streamUrl && Array.isArray(res?.entries) && res.entries.length > 0) {
-                 streamUrl = res.entries[0].url;
+            if (searchResult.hasTracks()) {
+                const bridgedTrack = searchResult.tracks[0];
+                console.log(`[GLOBAL BRIDGE] Trovata su SoundCloud: ${bridgedTrack.title}. Estrazione stream in corso...`);
+                
+                // Estrae il flusso audio direttamente da SoundCloud
+                const streamInfo = await bridgedTrack.extractor.stream(bridgedTrack);
+                if (streamInfo) return streamInfo;
             }
-
-            if (streamUrl) {
-                console.log(`[GLOBAL BRIDGE] Flusso audio estratto con successo (m4a url). Trasmetto al player...`);
-                return streamUrl;
-            } else {
-                console.log(`[GLOBAL BRIDGE] Nessun flusso estratto da youtube-dl.`);
-            }
+            console.log(`[GLOBAL BRIDGE] Traccia non trovata su SoundCloud, tento il fallback...`);
         } catch (e) {
-            console.error(`[GLOBAL BRIDGE ERROR] Errore critico nel bridge youtube-dl:`, e);
+            console.error(`[GLOBAL BRIDGE ERROR] Errore nel bridge verso SoundCloud:`, e);
         }
     }
-    return null;
+    return null; // Ritorna null per permettere a discord-player di usare i suoi estrattori di default (es. YoutubeiExtractor)
 });
-*/
 
 async function searchWithFallback(player, query, requestedBy) {
     if (query.includes('youtube.com/playlist') || (query.includes('youtube.com/watch') && query.includes('list='))) {
