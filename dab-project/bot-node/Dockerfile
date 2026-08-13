@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # Installa build tools necessari per node-gyp (sodium-native, davey)
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ ffmpeg libc6-compat
 
 WORKDIR /app
 
