@@ -742,7 +742,7 @@ async function startBots() {
         await player.extractors.loadMulti(DefaultExtractors);
         await player.extractors.register(YoutubeiExtractor, {
             streamOptions: {
-                useClient: 'IOS'
+                useClient: 'WEB'
             }
         });
         
