@@ -814,14 +814,39 @@ async function searchWithFallback(player, query, requestedBy) {
             }
         }
         
-        console.log(`[SEARCH FALLBACK] Tutti i metodi YouTube falliti. Provo SoundCloud con: "${searchTerm}"`);
-        const scResult = await player.search(searchTerm, { 
-            requestedBy, 
-            searchEngine: 'soundcloudSearch' 
-        });
-        if (scResult.hasTracks()) {
-            console.log(`[SEARCH FALLBACK] Trovato su SoundCloud: ${scResult.tracks[0].title}`);
-            return scResult;
+        console.log(`[SEARCH FALLBACK] Tutti i metodi YouTube falliti. Provo SoundCloud tramite play-dl con: "${searchTerm}"`);
+        
+        const play = await import('play-dl');
+        const clientId = await play.getFreeClientID();
+        await play.setToken({ soundcloud: { client_id: clientId } });
+        
+        const scResults = await play.search(searchTerm, { source: { soundcloud: 'tracks' }, limit: 10 });
+        if (scResults && scResults.length > 0) {
+            // Filtra risultati indesiderati se non richiesti esplicitamente
+            const unwantedKeywords = ['remix', 'slowed', 'reverb', 'nightcore', 'mashup', 'cover', 'live', 'instrumental', 'karaoke', 'type beat'];
+            const searchLower = searchTerm.toLowerCase();
+            
+            let bestTrack = null;
+            for (const track of scResults) {
+                const titleLower = track.name.toLowerCase();
+                // Se la traccia contiene una parola indesiderata e la parola NON è nel termine di ricerca, saltala
+                const hasUnwanted = unwantedKeywords.some(kw => titleLower.includes(kw) && !searchLower.includes(kw));
+                if (!hasUnwanted) {
+                    bestTrack = track;
+                    break;
+                }
+            }
+            
+            // Se tutte le tracce hanno parole indesiderate, prendi la prima
+            if (!bestTrack) bestTrack = scResults[0];
+            
+            console.log(`[SEARCH FALLBACK] Trovato su SoundCloud (miglior match): ${bestTrack.name}`);
+            
+            // Crea il SearchResult passando l'URL della traccia a discord-player
+            const finalResult = await player.search(bestTrack.url, { requestedBy, searchEngine: 'soundcloud' });
+            if (finalResult.hasTracks()) {
+                return finalResult;
+            }
         }
     } catch (e) {
         console.error(`[SEARCH FALLBACK] Anche SoundCloud ha fallito:`, e.message || e);
