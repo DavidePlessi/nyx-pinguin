@@ -144,5 +144,22 @@
       "confirmDelete": "Are you sure you want to delete this user?",
       "errorDeleting": "Error deleting user"
     }
+  },
+  "music": {
+    "title": "REPRODUCTOR DE MÚSICA",
+    "guildIdLabel": "Guild ID (Servidor)",
+    "scan": "ESCANEAR",
+    "play": "REPRODUCIR",
+    "insert": "INSERTAR",
+    "urlPlaceholder": "Búsqueda o Enlace...",
+    "selectChannel": "Seleccionar Canal de Voz...",
+    "playingIn": "Reproduciendo en",
+    "queue": "Cola",
+    "emptyQueue": "La cola está vacía",
+    "noBots": "No hay música actualmente. ¡Selecciona un canal y reproduce!",
+    "errorGuild": "Guild ID requerido",
+    "errorChannel": "Selecciona un canal primero",
+    "errorQuery": "La búsqueda no puede estar vacía",
+    "commandSent": "Comando enviado"
   }
 }

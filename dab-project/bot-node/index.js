@@ -3,19 +3,26 @@ import { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, V
 import { MongoClient } from 'mongodb';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { Player, onBeforeCreateStream, Track, SearchResult, Playlist } from 'discord-player';
+import { DefaultExtractors } from '@discord-player/extractor';
+import { YoutubeiExtractor } from 'discord-player-youtubei';
+import yt from 'youtube-dl-exec';
 
 // Load .env from backend
-config({ path: resolve('../backend/.env') });
+config({ path: resolve('../.env') });
 
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.MONGO_DB_NAME;
 const PRIMARY_TOKEN = process.env.DISCORD_PRIMARY_TOKEN;
 const AUX_TOKENS = (process.env.DISCORD_AUX_TOKENS || '').split(',').map(t => t.trim()).filter(t => t);
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Clients
 const primaryBot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers] });
 const auxBots = AUX_TOKENS.map(() => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] }));
+
+const musicPlayers = new Map(); // botId -> Player
 
 let dbClient;
 let audioPlayer = createAudioPlayer({
@@ -31,7 +38,22 @@ const activeBroadcasts = new Map(); // Traccia: sourceGuildId -> [{botId, target
 async function registerCommands() {
     const commands = [
         new SlashCommandBuilder().setName('pinguin_on_duty').setDescription('Avvia il broadcasting audio dai canali configurati'),
-        new SlashCommandBuilder().setName('pinguin_at_ease').setDescription('Ferma il broadcasting audio')
+        new SlashCommandBuilder().setName('pinguin_at_ease').setDescription('Ferma il broadcasting audio'),
+        new SlashCommandBuilder().setName('pinguin_dashboard').setDescription('Ottieni il link alla Dashboard Web per questo server'),
+        new SlashCommandBuilder()
+            .setName('pinguin_play')
+            .setDescription('Riproduce musica o aggiunge alla fine della coda')
+            .addStringOption(option => option.setName('query').setDescription('Link o titolo del brano/playlist').setRequired(true)),
+        new SlashCommandBuilder()
+            .setName('pinguin_insert')
+            .setDescription('Inserisce un brano o playlist in cima alla coda (salta la fila)')
+            .addStringOption(option => option.setName('query').setDescription('Link o titolo del brano/playlist').setRequired(true)),
+        new SlashCommandBuilder().setName('pinguin_queue').setDescription('Mostra la coda attuale'),
+        new SlashCommandBuilder().setName('pinguin_skip').setDescription('Salta alla traccia successiva'),
+        new SlashCommandBuilder().setName('pinguin_previous').setDescription('Torna alla traccia precedente'),
+        new SlashCommandBuilder().setName('pinguin_pause').setDescription('Mette in pausa la musica'),
+        new SlashCommandBuilder().setName('pinguin_resume').setDescription('Riprende la musica in pausa'),
+        new SlashCommandBuilder().setName('pinguin_stop').setDescription('Ferma la musica e svuota la coda')
     ].map(c => c.toJSON());
 
     const rest = new REST({ version: '10' }).setToken(PRIMARY_TOKEN);
@@ -80,7 +102,134 @@ primaryBot.on('interactionCreate', async interaction => {
         });
         await interaction.reply("💤 **Pinguin at Ease.** Broadcasting fermato!");
     }
+
+    if (interaction.commandName === 'pinguin_dashboard') {
+        const url = `${FRONTEND_URL}/music?guild=${interaction.guildId}`;
+        await interaction.reply({ content: `🔗 **Dashboard Musicale:** [Clicca qui per accedere](${url})`, ephemeral: true });
+        return;
+    }
+
+    if (interaction.commandName.startsWith('pinguin_') && !['pinguin_on_duty', 'pinguin_at_ease', 'pinguin_dashboard'].includes(interaction.commandName)) {
+        await handleMusicCommand(interaction);
+    }
 });
+
+async function handleMusicCommand(interaction) {
+    await interaction.deferReply();
+    const userVoiceChannel = interaction.member.voice.channel;
+    if (!userVoiceChannel) {
+        return interaction.followUp("❌ Devi essere in un canale vocale per usare questo comando!");
+    }
+
+    let selectedBot = null;
+    let selectedPlayer = null;
+
+    // 1. Cerca bot già connesso a questo canale vocale
+    for (const bot of auxBots) {
+        const p = musicPlayers.get(bot.user.id);
+        const queue = p?.nodes.get(interaction.guildId);
+        if (queue && queue.channel.id === userVoiceChannel.id) {
+            selectedBot = bot;
+            selectedPlayer = p;
+            break;
+        }
+    }
+
+    // 2. Cerca un bot libero (priorità ai secondari)
+    if (!selectedBot) {
+        for (const bot of auxBots) {
+            const p = musicPlayers.get(bot.user.id);
+            const queue = p?.nodes.get(interaction.guildId);
+            const nativeConnection = getVoiceConnection(interaction.guildId, bot.user.id);
+            
+            if (!queue && !nativeConnection) {
+                selectedBot = bot;
+                selectedPlayer = p;
+                break;
+            }
+        }
+    }
+
+    if (!selectedBot) return interaction.followUp("❌ Tutti i pinguini sono occupati in questo momento!");
+
+    const command = interaction.commandName;
+    const query = interaction.options?.getString('query');
+    const permissions = userVoiceChannel.permissionsFor(selectedBot.user);
+    
+    if (!permissions.has('Connect') || !permissions.has('Speak')) {
+        return interaction.followUp(`❌ Il pinguino <@${selectedBot.user.id}> non ha i permessi per il tuo canale.`);
+    }
+
+    try {
+        if (command === 'pinguin_play' || command === 'pinguin_insert') {
+            const insert = command === 'pinguin_insert';
+            
+            // Fix per i link di YouTube Music
+            let safeQuery = query;
+            if (safeQuery.includes('music.youtube.com')) {
+                safeQuery = safeQuery.replace('music.youtube.com', 'www.youtube.com');
+            }
+
+            const searchResult = await searchWithFallback(selectedPlayer, safeQuery, interaction.user);
+            if (!searchResult.hasTracks()) {
+                return interaction.followUp("❌ Nessun brano trovato con questa ricerca.");
+            }
+
+            const botVoiceChannel = selectedBot.guilds.cache.get(interaction.guildId)?.channels.cache.get(userVoiceChannel.id);
+            if (!botVoiceChannel) {
+                return interaction.followUp("❌ Il pinguino non riesce a trovare il tuo canale vocale.");
+            }
+
+            const { track } = await selectedPlayer.play(botVoiceChannel, searchResult, {
+                nodeOptions: { metadata: interaction.channel },
+                requestedBy: interaction.user
+            });
+            
+            let queue = selectedPlayer.nodes.get(interaction.guildId);
+            if (insert && queue && queue.tracks.size > 1) {
+                 if (searchResult.playlist) {
+                     const addedTracks = queue.tracks.toArray().slice(-searchResult.tracks.length);
+                     addedTracks.forEach(t => queue.removeTrack(t));
+                     addedTracks.reverse().forEach(t => queue.insertTrack(t, 0));
+                 } else {
+                     queue.removeTrack(track);
+                     queue.insertTrack(track, 0);
+                 }
+            }
+            
+            return interaction.followUp(`🎶 **${insert ? 'Inserito in cima' : 'Aggiunto alla coda'}:** \`${track.title}\` tramite <@${selectedBot.user.id}>`);
+        }
+        
+        const queue = selectedPlayer.nodes.get(interaction.guildId);
+        if (!queue) return interaction.followUp("❌ Non c'è musica in riproduzione in questo canale.");
+
+        if (command === 'pinguin_queue') {
+            const currentTrack = queue.currentTrack;
+            const tracks = queue.tracks.toArray().slice(0, 10).map((t, i) => `${i + 1}. **${t.title}**`);
+            return interaction.followUp(`**In riproduzione:** \`${currentTrack?.title}\`\n\n**Coda:**\n${tracks.length > 0 ? tracks.join('\n') : 'Vuota'}`);
+        } else if (command === 'pinguin_skip') {
+            console.log(`[MUSIC COMMAND] pinguin_skip called by ${interaction.user.tag} in guild ${interaction.guildId}`);
+            queue.node.skip();
+            return interaction.followUp("⏩ Brano saltato.");
+        } else if (command === 'pinguin_previous') {
+            if (queue.history.tracks.size === 0) return interaction.followUp("❌ Nessun brano precedente.");
+            queue.history.previous();
+            return interaction.followUp("⏮️ Torno al brano precedente.");
+        } else if (command === 'pinguin_pause') {
+            queue.node.pause();
+            return interaction.followUp("⏸️ Musica in pausa.");
+        } else if (command === 'pinguin_resume') {
+            queue.node.resume();
+            return interaction.followUp("▶️ Musica ripresa.");
+        } else if (command === 'pinguin_stop') {
+            queue.delete();
+            return interaction.followUp("⏹️ Musica fermata e pinguino cacciato.");
+        }
+    } catch (e) {
+        console.error(e);
+        return interaction.followUp("❌ Si è verificato un errore durante l'esecuzione del comando musicale.");
+    }
+}
 
 async function handleIpc(data) {
     console.log("Received IPC Update:", data);
@@ -92,6 +241,13 @@ async function handleIpc(data) {
         const externalDestIds = data.external_dest_channels || [];
         const allDestIds = [...destIds, ...externalDestIds];
         const sourceRoleId = data.source_role_id;
+
+        // Ferma la musica ovunque per questo guild prima del broadcast
+        for (const bot of [primaryBot, ...auxBots]) {
+            const p = musicPlayers.get(bot.user.id);
+            const q = p?.nodes.get(guildId);
+            if (q) q.delete();
+        }
 
         // 1. Primary Bot Joins
         const guild = primaryBot.guilds.cache.get(guildId);
@@ -228,7 +384,6 @@ async function handleIpc(data) {
             }
             activeBroadcasts.delete(guildId);
         } else {
-            // fallback
             for (const bot of auxBots) {
                 const auxConn = getVoiceConnection(guildId, bot.user.id);
                 if (auxConn) auxConn.destroy();
@@ -238,6 +393,113 @@ async function handleIpc(data) {
         console.log("Stopped broadcast.");
     }
     
+    if (data.action.startsWith("music_")) {
+        const command = data.action.replace("music_", "");
+        const guildId = data.guild_id;
+        const query = data.query;
+        const targetBotId = data.bot_id;
+        
+        let selectedBot = null;
+        let selectedPlayer = null;
+
+        if (targetBotId) {
+            selectedBot = auxBots.find(b => b.user.id === targetBotId);
+            if (selectedBot) selectedPlayer = musicPlayers.get(targetBotId);
+        }
+
+        if (!selectedPlayer && (command === 'play' || command === 'insert')) {
+            // Seleziona un bot (come nel comando chat)
+            for (const bot of auxBots) {
+                const p = musicPlayers.get(bot.user.id);
+                const queue = p?.nodes.get(guildId);
+                if (queue && queue.channel.id === data.voice_channel_id) {
+                    selectedBot = bot;
+                    selectedPlayer = p;
+                    break;
+                }
+            }
+            if (!selectedBot) {
+                for (const bot of auxBots) {
+                    const p = musicPlayers.get(bot.user.id);
+                    const queue = p?.nodes.get(guildId);
+                    const nativeConnection = getVoiceConnection(guildId, bot.user.id);
+                    if (!queue && !nativeConnection) {
+                        selectedBot = bot;
+                        selectedPlayer = p;
+                        break;
+                    }
+                }
+            }
+        } else if (!selectedPlayer) {
+            // Per gli altri comandi senza targetBotId, cerca il primo player con una coda in questo guild
+            for (const bot of auxBots) {
+                const p = musicPlayers.get(bot.user.id);
+                if (p?.nodes.get(guildId)) {
+                    selectedBot = bot;
+                    selectedPlayer = p;
+                    break;
+                }
+            }
+        }
+
+        if (selectedPlayer) {
+            try {
+                if (command === 'play' || command === 'insert') {
+                    const guild = selectedBot.guilds.cache.get(guildId);
+                    const vc = guild?.channels.cache.get(data.voice_channel_id);
+                    if (vc) {
+                        const permissions = vc.permissionsFor(selectedBot.user);
+                        if (!permissions?.has('ViewChannel') || !permissions?.has('Connect') || !permissions?.has('Speak')) {
+                            console.error(`[IPC] Il bot ${selectedBot.user.id} non ha i permessi necessari (ViewChannel, Connect, Speak) per il canale ${vc.name}`);
+                            return;
+                        }
+
+                        // Fix per i link di YouTube Music
+                        let safeQuery = query;
+                        if (safeQuery.includes('music.youtube.com')) {
+                            safeQuery = safeQuery.replace('music.youtube.com', 'www.youtube.com');
+                        }
+
+                        const searchResult = await searchWithFallback(selectedPlayer, safeQuery, primaryBot.user);
+                        if (searchResult.hasTracks()) {
+                            const insert = command === 'insert';
+                            const { track } = await selectedPlayer.play(vc, searchResult, {
+                                nodeOptions: { metadata: null },
+                                requestedBy: primaryBot.user
+                            });
+
+                            let queue = selectedPlayer.nodes.get(guildId);
+                            if (insert && queue && queue.tracks.size > 1) {
+                                if (searchResult.playlist) {
+                                    const addedTracks = queue.tracks.toArray().slice(-searchResult.tracks.length);
+                                    addedTracks.forEach(t => queue.removeTrack(t));
+                                    addedTracks.reverse().forEach(t => queue.insertTrack(t, 0));
+                                } else {
+                                    queue.removeTrack(track);
+                                    queue.insertTrack(track, 0);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    const queue = selectedPlayer.nodes.get(guildId);
+                    if (queue) {
+                        if (command === 'skip') {
+                            console.log(`[IPC MUSIC] skip called for guild ${guildId}`);
+                            queue.node.skip();
+                        }
+                        if (command === 'previous') queue.history.previous();
+                        if (command === 'pause') queue.node.pause();
+                        if (command === 'resume') queue.node.resume();
+                        if (command === 'stop') queue.delete();
+                    }
+                }
+            } catch (e) {
+                console.error("Errore IPC music command:", e);
+            }
+        }
+    }
+
     if (data.action === "system_restart") {
         console.log("[SYSTEM] Ricevuto comando di riavvio dal Mainframe. Riavvio in corso...");
         process.exit(0);
@@ -300,20 +562,46 @@ async function startIPCListener() {
     const db = dbClient.db(DB_NAME);
     const logCollection = db.collection('bot_logs');
 
-    // Override console.log and console.error
+    // Log levels implementation
+    const logLevels = { debug: 0, info: 1, warn: 2, error: 3 };
+    const currentLevelStr = (process.env.LOG_LEVEL || 'info').toLowerCase();
+    const currentLevel = logLevels[currentLevelStr] ?? 1;
+
     const originalLog = console.log;
     const originalError = console.error;
+    const originalWarn = console.warn || originalLog;
+    const originalDebug = console.debug || originalLog;
+
+    console.debug = function(...args) {
+        if (currentLevel <= logLevels.debug) {
+            originalDebug.apply(console, ['[DEBUG]', ...args]);
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            logCollection.insertOne({ timestamp: new Date(), level: 'debug', message: msg }).catch(() => {});
+        }
+    };
 
     console.log = function(...args) {
-        originalLog.apply(console, args);
-        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-        logCollection.insertOne({ timestamp: new Date(), level: 'info', message: msg }).catch(() => {});
+        if (currentLevel <= logLevels.info) {
+            originalLog.apply(console, ['[INFO]', ...args]);
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            logCollection.insertOne({ timestamp: new Date(), level: 'info', message: msg }).catch(() => {});
+        }
+    };
+
+    console.warn = function(...args) {
+        if (currentLevel <= logLevels.warn) {
+            originalWarn.apply(console, ['[WARN]', ...args]);
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            logCollection.insertOne({ timestamp: new Date(), level: 'warn', message: msg }).catch(() => {});
+        }
     };
 
     console.error = function(...args) {
-        originalError.apply(console, args);
-        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-        logCollection.insertOne({ timestamp: new Date(), level: 'error', message: msg }).catch(() => {});
+        if (currentLevel <= logLevels.error) {
+            originalError.apply(console, ['[ERROR]', ...args]);
+            const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+            logCollection.insertOne({ timestamp: new Date(), level: 'error', message: msg }).catch(() => {});
+        }
     };
 
     const collection = db.collection('ipc_messages');
@@ -341,7 +629,87 @@ async function startIPCListener() {
         await handleIpc(doc.data);
     });
 }
+// Intercettazione globale per aggirare i blocchi di YouTube
+// Utilizza youtube-dl-exec (yt-dlp) per estrarre direttamente i flussi m4a
+// bypassando le API web e android che vengono attualmente bloccate (errore 403 o 400).
+onBeforeCreateStream(async (track, queryType, queue) => {
+    const isYouTube = track.url.includes('youtube.com') || track.url.includes('youtu.be') || track.extractor?.identifier === 'com.retrouser955.discord-player.discord-player-youtubei';
+    const isSpotify = track.url.includes('spotify.com') || track.extractor?.identifier === 'com.discord-player.spotifyextractor';
+    
+    if (isYouTube || isSpotify) {
+        try {
+            console.log(`[GLOBAL BRIDGE] Intercettata traccia ${isSpotify ? 'Spotify' : 'YouTube'}: ${track.title}. Uso youtube-dl per estrarre il flusso...`);
+            let searchUrl = track.url;
+            
+            if (isSpotify) {
+                const cleanTitle = `${track.title} ${track.author}`.replace(/\[.*?\]|\(.*?\)/g, '').trim();
+                searchUrl = `ytsearch1:${cleanTitle}`;
+            }
 
+            const res = await yt(searchUrl, { 
+                dumpJson: true, 
+                format: 'bestaudio[ext=m4a]/bestaudio' 
+            });
+            
+            let streamUrl = res?.url;
+            if (!streamUrl && Array.isArray(res?.entries) && res.entries.length > 0) {
+                 streamUrl = res.entries[0].url;
+            }
+
+            if (streamUrl) {
+                console.log(`[GLOBAL BRIDGE] Flusso audio estratto con successo (m4a url). Trasmetto al player...`);
+                return streamUrl;
+            } else {
+                console.log(`[GLOBAL BRIDGE] Nessun flusso estratto da youtube-dl.`);
+            }
+        } catch (e) {
+            console.error(`[GLOBAL BRIDGE ERROR] Errore critico nel bridge youtube-dl:`, e);
+        }
+    }
+    return null;
+});
+
+async function searchWithFallback(player, query, requestedBy) {
+    if (query.includes('youtube.com/playlist') || (query.includes('youtube.com/watch') && query.includes('list='))) {
+        try {
+            console.log(`[SYS] Estrazione manuale playlist YouTube: ${query}`);
+            const res = await yt(query, { dumpSingleJson: true, flatPlaylist: true });
+            if (res && res.entries && res.entries.length > 0) {
+                const tracks = res.entries.map(e => new Track(player, {
+                    title: e.title,
+                    description: e.description || '',
+                    author: e.uploader || e.channel || 'Unknown',
+                    url: e.url || `https://www.youtube.com/watch?v=${e.id}`,
+                    thumbnail: e.thumbnails?.[0]?.url || '',
+                    duration: e.duration ? new Date(e.duration * 1000).toISOString().substring(11, 19).replace(/^00:/, '') : '0:00',
+                    views: e.view_count || 0,
+                    requestedBy: requestedBy,
+                    source: 'youtube'
+                }));
+                const playlist = new Playlist(player, {
+                    title: res.title || 'YouTube Playlist',
+                    url: query,
+                    tracks: tracks,
+                    source: 'youtube',
+                    thumbnail: tracks[0]?.thumbnail || '',
+                    author: { name: res.uploader || 'Unknown', url: '' }
+                });
+                return new SearchResult(player, {
+                    query: query,
+                    queryType: 'youtubePlaylist',
+                    playlist: playlist,
+                    tracks: tracks,
+                    requestedBy: requestedBy
+                });
+            }
+        } catch (e) {
+            console.error(`Errore estrazione manuale playlist:`, e);
+        }
+    }
+    return await player.search(query, { requestedBy });
+}
+
+// START
 async function startBots() {
     await startIPCListener();
     await registerCommands();
@@ -354,6 +722,127 @@ async function startBots() {
         console.log(`Logging in Aux Bot ${i+1}...`);
         await auxBots[i].login(AUX_TOKENS[i]);
     }
+
+    console.log("Inizializzazione discord-player per i pinguini...");
+    for (const bot of [primaryBot, ...auxBots]) {
+        const player = new Player(bot);
+        await player.extractors.loadMulti(DefaultExtractors);
+        await player.extractors.register(YoutubeiExtractor, {
+            streamOptions: {
+                useClient: 'ANDROID'
+            }
+        });
+        
+        player.events.on('error', (queue, error) => {
+            console.error(`[PLAYER ERROR] Errore generico (Bot ${bot.user.id}):`, error);
+        });
+
+        player.events.on('playerError', (queue, error) => {
+            console.error(`[AUDIO ENGINE ERROR] Errore di decodifica/stream (Bot ${bot.user.id}):`, error);
+        });
+        
+        player.events.on('connectionError', (queue, error) => {
+            console.error(`[CONNECTION ERROR] Errore connessione vocale (Bot ${bot.user.id}):`, error);
+        });
+
+        player.events.on('debug', (queue, message) => {
+            console.debug(`(Bot ${bot.user.id}):`, message);
+        });
+
+        player.on('debug', (message) => {
+            console.debug(`[SYS] (Bot ${bot.user.id}):`, message);
+        });
+
+        player.events.on('playerStart', (queue, track) => {
+            console.log(`[PLAYING] Avviata riproduzione di: ${track.title} (Bot ${bot.user.id})`);
+        });
+
+        musicPlayers.set(bot.user.id, player);
+    }
+    console.log("✅ Music Players inizializzati.");
+
+    // Avvia il sync dello stato musicale su MongoDB
+    startMusicStatusSync();
+}
+
+process.on('uncaughtException', (err) => {
+    console.error('[CRITICAL CRASH] Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[CRITICAL CRASH] Unhandled Rejection:', reason);
+});
+
+function startMusicStatusSync() {
+    setInterval(async () => {
+        if (!dbClient) return;
+        const db = dbClient.db(DB_NAME);
+        const collection = db.collection('guild_music_status');
+        
+        // Raccogliamo lo stato per ogni gilda attiva
+        const statusByGuild = new Map();
+
+        for (const bot of [primaryBot, ...auxBots]) {
+            const player = musicPlayers.get(bot.user.id);
+            if (!player) continue;
+
+            for (const queue of player.nodes.cache.values()) {
+                const guildId = queue.guild.id;
+                if (!statusByGuild.has(guildId)) {
+                    statusByGuild.set(guildId, []);
+                }
+                
+                const current = queue.currentTrack;
+                statusByGuild.get(guildId).push({
+                    bot_id: bot.user.id,
+                    channel_id: queue.channel?.id,
+                    is_paused: queue.node.isPaused(),
+                    current_track: current ? {
+                        title: current.title,
+                        url: current.url,
+                        thumbnail: current.thumbnail,
+                        duration: current.duration
+                    } : null,
+                    queue: queue.tracks.toArray().slice(0, 50).map(t => ({
+                        title: t.title,
+                        url: t.url,
+                        thumbnail: t.thumbnail
+                    }))
+                });
+            }
+        }
+
+        // Aggiorna MongoDB
+        // Poiché ci sono guild senza musica attiva, dovremmo anche pulire i vecchi documenti 
+        // o fare upsert basandoci sulla map, e rimuovere quelli che non sono più attivi.
+        try {
+            const bulkOps = [];
+            
+            // Aggiorna o Inserisci gli attivi
+            for (const [guildId, active_bots] of statusByGuild.entries()) {
+                bulkOps.push({
+                    updateOne: {
+                        filter: { guild_id: guildId },
+                        update: { $set: { active_bots, last_updated: new Date() } },
+                        upsert: true
+                    }
+                });
+            }
+
+            // Segna come vuoti quelli non più attivi
+            bulkOps.push({
+                updateMany: {
+                    filter: { guild_id: { $nin: Array.from(statusByGuild.keys()) } },
+                    update: { $set: { active_bots: [], last_updated: new Date() } }
+                }
+            });
+
+            if (bulkOps.length > 0) {
+                await collection.bulkWrite(bulkOps);
+            }
+        } catch (e) {
+            console.error("Errore nel sync dello stato musicale:", e);
+        }
+    }, 1000); // Ogni 1 secondo
 }
 
 startBots().catch(console.error);

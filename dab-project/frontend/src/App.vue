@@ -22,8 +22,14 @@ const route = useRoute()
         {{ t('app.audioMatrix') }}
       </p>
       
-      <div class="mt-4 no-print" v-if="route.name !== 'Manual' && route.name !== 'Login'">
-        <router-link :to="{ name: 'Manual', query: route.query }" class="inline-block text-sm font-rajdhani text-gray-400 hover:text-cyber-cyan border border-gray-700 hover:border-cyber-cyan px-4 py-1 rounded transition-colors">
+      <div class="mt-4 no-print flex gap-4 justify-center" v-if="route.name !== 'Login'">
+        <router-link v-if="route.name !== 'Dashboard'" :to="{ name: 'Dashboard', query: route.query }" class="inline-block text-sm font-rajdhani text-gray-400 hover:text-cyber-cyan border border-gray-700 hover:border-cyber-cyan px-4 py-1 rounded transition-colors">
+          DASHBOARD
+        </router-link>
+        <router-link v-if="route.name !== 'Music'" :to="{ name: 'Music', query: route.query }" class="inline-block text-sm font-rajdhani text-gray-400 hover:text-cyber-purple border border-gray-700 hover:border-cyber-purple px-4 py-1 rounded transition-colors">
+          {{ t('music.title') || 'MUSIC' }}
+        </router-link>
+        <router-link v-if="route.name !== 'Manual'" :to="{ name: 'Manual', query: route.query }" class="inline-block text-sm font-rajdhani text-gray-400 hover:text-cyber-cyan border border-gray-700 hover:border-cyber-cyan px-4 py-1 rounded transition-colors">
           {{ t('app.viewManual') }}
         </router-link>
       </div>

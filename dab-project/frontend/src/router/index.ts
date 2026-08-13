@@ -24,6 +24,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/music',
+      name: 'Music',
+      component: () => import('../views/MusicView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin',
       name: 'AdminPanel',
       component: () => import('../views/AdminPanel.vue'),

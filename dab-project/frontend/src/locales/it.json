@@ -144,5 +144,22 @@
       "confirmDelete": "Sei sicuro di voler eliminare questo utente?",
       "errorDeleting": "Errore durante l'eliminazione"
     }
+  },
+  "music": {
+    "title": "LETTORE MUSICALE",
+    "guildIdLabel": "Guild ID (Server)",
+    "scan": "SCANSIONA",
+    "play": "RIPRODUCI",
+    "insert": "INSERISCI",
+    "urlPlaceholder": "Ricerca o Link...",
+    "selectChannel": "Seleziona Canale Vocale...",
+    "playingIn": "In riproduzione su",
+    "queue": "Coda",
+    "emptyQueue": "La coda è vuota",
+    "noBots": "Nessuna musica in riproduzione. Seleziona un canale e avvia un brano!",
+    "errorGuild": "Guild ID richiesto",
+    "errorChannel": "Seleziona prima un canale",
+    "errorQuery": "La ricerca non può essere vuota",
+    "commandSent": "Comando inviato"
   }
 }

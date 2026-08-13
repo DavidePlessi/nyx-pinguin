@@ -8,11 +8,20 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.16.2",
+    "@discord-player/extractor": "^7.2.0",
     "@discordjs/voice": "^0.19.0",
+    "@distube/ytdl-core": "^4.16.12",
     "@snazzah/davey": "^0.1.12",
-    "sodium-native": "^4.3.1",
+    "discord-player": "^7.2.0",
+    "discord-player-youtubei": "^2.0.0",
+    "discord.js": "^14.16.2",
+    "dotenv": "^16.4.5",
+    "ffmpeg-static": "^5.3.0",
     "mongodb": "^6.8.0",
-    "dotenv": "^16.4.5"
+    "play-dl": "^1.9.7",
+    "sodium-native": "^4.3.1",
+    "youtube-dl-exec": "^3.1.12",
+    "youtube-ext": "^1.1.25",
+    "youtubei.js": "^18.0.0"
   }
 }

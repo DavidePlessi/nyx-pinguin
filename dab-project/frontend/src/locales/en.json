@@ -144,5 +144,22 @@
       "confirmDelete": "Are you sure you want to delete this user?",
       "errorDeleting": "Error deleting user"
     }
+  },
+  "music": {
+    "title": "MUSIC PLAYER",
+    "guildIdLabel": "Guild ID (Server)",
+    "scan": "SCAN",
+    "play": "PLAY",
+    "insert": "INSERT",
+    "urlPlaceholder": "Search or Link...",
+    "selectChannel": "Select Voice Channel...",
+    "playingIn": "Playing in",
+    "queue": "Queue",
+    "emptyQueue": "Queue is empty",
+    "noBots": "No music playing currently. Select a channel and play a track!",
+    "errorGuild": "Guild ID required",
+    "errorChannel": "Select a channel first",
+    "errorQuery": "Query cannot be empty",
+    "commandSent": "Command sent"
   }
 }

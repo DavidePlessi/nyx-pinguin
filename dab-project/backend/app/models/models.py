@@ -29,3 +29,11 @@ class BotLog(Document):
 
     class Settings:
         name = "bot_logs"
+
+class GuildMusicStatus(Document):
+    guild_id: str
+    active_bots: list = []
+    last_updated: datetime = datetime.utcnow()
+
+    class Settings:
+        name = "guild_music_status"

@@ -8,6 +8,9 @@ api_router.include_router(oauth_router, prefix="/oauth", tags=["oauth"])
 from app.api.admin import router as admin_router
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 
+from app.api.music import router as music_router
+api_router.include_router(music_router, prefix="/music", tags=["music"])
+
 from app.api.oauth import get_current_admin
 from app.models.models import AdminUser, GuildConfig, BotLog
 from app.core.config import settings
