@@ -799,11 +799,23 @@ async function searchWithFallback(player, query, requestedBy) {
         }
     }
 
-    // 4. Ultimo tentativo: cerca su SoundCloud per titolo
+    // 4. Ultimo tentativo: cerca su SoundCloud per titolo (usando OEmbed per recuperare il titolo se IP bloccato)
     try {
-        const searchTerm = isYouTubeUrl ? query.split('?')[0].split('/').pop() : query;
-        console.log(`[SEARCH FALLBACK] Tutti i metodi YouTube falliti. Provo SoundCloud con: "${query}"`);
-        const scResult = await player.search(query, { 
+        let searchTerm = query;
+        if (isYouTubeUrl) {
+            console.log(`[SEARCH FALLBACK] Recupero titolo pulito tramite OEmbed API per aggirare blocco IP...`);
+            const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${query}&format=json`);
+            if (oembedRes.ok) {
+                const oembedData = await oembedRes.json();
+                searchTerm = `${oembedData.title} ${oembedData.author_name.replace(' - Topic', '')}`.trim();
+                console.log(`[SEARCH FALLBACK] OEmbed ha restituito il titolo: "${searchTerm}"`);
+            } else {
+                console.warn(`[SEARCH FALLBACK] OEmbed fallito, uso URL grezzo (probabilità di errore alta).`);
+            }
+        }
+        
+        console.log(`[SEARCH FALLBACK] Tutti i metodi YouTube falliti. Provo SoundCloud con: "${searchTerm}"`);
+        const scResult = await player.search(searchTerm, { 
             requestedBy, 
             searchEngine: 'soundcloudSearch' 
         });
