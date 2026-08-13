@@ -451,6 +451,29 @@ async function handleIpc(data) {
             }
         }
 
+        // Fallback: se non abbiamo trovato nessun bot disponibile, forza il primo aux bot
+        // pulendo eventuali connessioni vocali residue (stato sporco da sessioni precedenti)
+        if (!selectedPlayer && (command === 'play' || command === 'insert')) {
+            console.warn(`[IPC] Nessun bot disponibile trovato con selezione normale. Forzo il primo aux bot e pulisco le connessioni residue...`);
+            const firstBot = auxBots[0];
+            if (firstBot) {
+                const residualConn = getVoiceConnection(guildId, firstBot.user.id);
+                if (residualConn) {
+                    console.warn(`[IPC] Trovata connessione residua per bot ${firstBot.user.id}, la distruggo.`);
+                    residualConn.destroy();
+                }
+                const residualQueue = musicPlayers.get(firstBot.user.id)?.nodes.get(guildId);
+                if (residualQueue) residualQueue.delete();
+                selectedBot = firstBot;
+                selectedPlayer = musicPlayers.get(firstBot.user.id);
+                console.log(`[IPC] Fallback: selezionato bot ${firstBot.user.id}`);
+            }
+        }
+
+        if (!selectedPlayer) {
+            console.error(`[IPC] Impossibile trovare un player per il comando '${command}' in guild ${guildId}. Aux bot disponibili: ${auxBots.length}`);
+        }
+
         if (selectedPlayer) {
             try {
                 if (command === 'play' || command === 'insert') {
