@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Dashboard from '../views/Dashboard.vue'
+import HomeDashboard from '../views/HomeDashboard.vue'
 import Login from '../views/Login.vue'
 import ManualView from '../views/ManualView.vue'
 
@@ -9,7 +9,13 @@ const router = createRouter({
     {
       path: '/',
       name: 'Dashboard',
-      component: Dashboard,
+      component: HomeDashboard,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/broadcasting',
+      name: 'Broadcasting',
+      component: () => import('../views/BroadcastingView.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -30,9 +36,21 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/drops',
+      name: 'Drops',
+      component: () => import('../views/DropsView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin',
       name: 'AdminPanel',
       component: () => import('../views/AdminPanel.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/drops-admin',
+      name: 'DropsAdmin',
+      component: () => import('../views/DropsAdmin.vue'),
       meta: { requiresAuth: true }
     }
   ]

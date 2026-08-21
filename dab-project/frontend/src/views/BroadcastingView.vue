@@ -190,10 +190,10 @@ onUnmounted(() => {
     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 border-b border-gray-800 pb-4">
       <h2 class="font-rajdhani text-2xl md:text-3xl font-bold neon-text-cyan text-center md:text-left">{{ t('dashboard.matrixConfiguration') }}</h2>
       <div class="flex items-center gap-4">
-        <router-link v-if="userRole === 'admin'" to="/admin" class="text-sm text-cyber-cyan hover:text-white transition-colors whitespace-nowrap font-bold">
-          ADMIN PANEL
+        <router-link to="/" class="text-sm text-cyber-cyan hover:text-white transition-colors whitespace-nowrap font-bold flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          BACK TO HUB
         </router-link>
-        <button @click="logout" class="text-sm text-gray-400 hover:text-cyber-pink transition-colors whitespace-nowrap">{{ t('dashboard.logout') }}</button>
       </div>
     </div>
 

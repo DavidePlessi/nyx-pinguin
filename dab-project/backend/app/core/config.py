@@ -2,6 +2,7 @@ import os
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
+    GUILD_BOT_TOKEN: str = os.getenv("GUILD_BOT_TOKEN", "")
     DISCORD_PRIMARY_TOKEN: str = os.getenv("DISCORD_PRIMARY_TOKEN", "your-primary-bot-token")
     DISCORD_AUX_TOKENS: str = os.getenv("DISCORD_AUX_TOKENS", "aux-token-1,aux-token-2,aux-token-3,aux-token-4")
     DISCORD_CLIENT_ID: str = os.getenv("DISCORD_CLIENT_ID", "your-client-id")

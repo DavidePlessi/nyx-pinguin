@@ -11,7 +11,13 @@ api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 from app.api.music import router as music_router
 api_router.include_router(music_router, prefix="/music", tags=["music"])
 
-from app.api.oauth import get_current_admin
+from app.api.questlog import router as questlog_router
+api_router.include_router(questlog_router, prefix="/questlog", tags=["questlog"])
+
+from app.api.drops import router as drops_router
+api_router.include_router(drops_router, prefix="/drops", tags=["drops"])
+
+from app.api.oauth import get_current_admin, get_current_guild_admin
 from app.models.models import AdminUser, GuildConfig, BotLog
 from app.core.config import settings
 from fastapi import Depends, HTTPException
@@ -32,14 +38,14 @@ class ConfigUpdateSchema(BaseModel):
     is_active: bool
 
 @api_router.get("/config/{guild_id}")
-async def get_config(guild_id: str, admin: AdminUser = Depends(get_current_admin)):
+async def get_config(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
         return {"guild_id": guild_id, "is_active": False, "dest_channels": [], "external_dest_channels": []}
     return config
 
 @api_router.post("/config")
-async def save_config(data: ConfigUpdateSchema, admin: AdminUser = Depends(get_current_admin)):
+async def save_config(data: ConfigUpdateSchema, admin: AdminUser = Depends(get_current_guild_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == data.guild_id)
     if not config:
         config = GuildConfig(**data.dict())
@@ -53,7 +59,7 @@ async def save_config(data: ConfigUpdateSchema, admin: AdminUser = Depends(get_c
     return {"status": "success", "config": config}
 
 @api_router.get("/discord/guilds/{guild_id}/channels")
-async def get_guild_channels(guild_id: str, admin: AdminUser = Depends(get_current_admin)):
+async def get_guild_channels(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
     url = f"https://discord.com/api/v10/guilds/{guild_id}/channels"
     headers = {"Authorization": f"Bot {settings.DISCORD_PRIMARY_TOKEN}"}
     async with httpx.AsyncClient() as client:
@@ -66,7 +72,7 @@ async def get_guild_channels(guild_id: str, admin: AdminUser = Depends(get_curre
         return [{"id": c["id"], "name": c["name"], "type": c["type"]} for c in voice_channels]
 
 @api_router.get("/discord/guilds/{guild_id}/roles")
-async def get_guild_roles(guild_id: str, admin: AdminUser = Depends(get_current_admin)):
+async def get_guild_roles(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
     url = f"https://discord.com/api/v10/guilds/{guild_id}/roles"
     headers = {"Authorization": f"Bot {settings.DISCORD_PRIMARY_TOKEN}"}
     async with httpx.AsyncClient() as client:

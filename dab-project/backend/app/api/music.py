@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from app.api.oauth import get_current_admin
+from app.api.oauth import get_current_admin, get_current_guild_admin
 from app.models.models import AdminUser, GuildMusicStatus
 from app.core.ipc import publish_message
 from datetime import datetime
@@ -16,14 +16,14 @@ class MusicCommandSchema(BaseModel):
     bot_id: Optional[str] = None # For targeted commands
 
 @router.get("/status/{guild_id}")
-async def get_music_status(guild_id: str, admin: AdminUser = Depends(get_current_admin)):
+async def get_music_status(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
     status = await GuildMusicStatus.find_one(GuildMusicStatus.guild_id == guild_id)
     if not status:
         return {"guild_id": guild_id, "active_bots": [], "last_updated": datetime.utcnow()}
     return status
 
 @router.post("/command")
-async def send_music_command(data: MusicCommandSchema, admin: AdminUser = Depends(get_current_admin)):
+async def send_music_command(data: MusicCommandSchema, admin: AdminUser = Depends(get_current_guild_admin)):
     await publish_message("dab_updates", {
         "action": f"music_{data.action}",
         "guild_id": data.guild_id,

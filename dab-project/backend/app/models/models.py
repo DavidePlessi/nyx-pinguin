@@ -4,8 +4,10 @@ from datetime import datetime
 
 class GuildConfig(Document):
     guild_id: str
+    name: str = "Nuova Gilda"
     source_channel_id: Optional[str] = None
     source_role_id: Optional[str] = None
+    member_role_id: Optional[str] = None
     dest_channels: List[str] = []
     external_dest_channels: List[str] = []
     is_active: bool = False

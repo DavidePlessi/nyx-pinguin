@@ -90,3 +90,44 @@ async def update_instances(data: ApiInstancesSchema, admin: AdminUser = Depends(
         config.invidious = data.invidious
         await config.save()
     return {"status": "success"}
+
+class GuildCreateSchema(BaseModel):
+    name: str
+    guild_id: str
+
+@router.get("/guilds")
+async def get_all_guilds(admin: AdminUser = Depends(require_admin)):
+    guilds = await GuildConfig.find_all().to_list()
+    return [{"guild_id": g.guild_id, "name": g.name, "member_role_id": g.member_role_id} for g in guilds]
+
+@router.post("/guilds")
+async def create_guild(data: GuildCreateSchema, admin: AdminUser = Depends(require_admin)):
+    existing = await GuildConfig.find_one(GuildConfig.guild_id == data.guild_id)
+    if existing:
+        raise HTTPException(status_code=400, detail="Una Gilda con questo Discord ID esiste già.")
+    
+    new_guild = GuildConfig(guild_id=data.guild_id, name=data.name)
+    await new_guild.save()
+    return {"status": "success", "guild": {"guild_id": new_guild.guild_id, "name": new_guild.name}}
+
+class GuildUpdateSchema(BaseModel):
+    name: str
+
+@router.put("/guilds/{guild_id}")
+async def update_guild(guild_id: str, data: GuildUpdateSchema, admin: AdminUser = Depends(require_admin)):
+    target_guild = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+    if not target_guild:
+        raise HTTPException(status_code=404, detail="Gilda non trovata.")
+    
+    target_guild.name = data.name
+    await target_guild.save()
+    return {"status": "success", "guild": {"guild_id": target_guild.guild_id, "name": target_guild.name}}
+
+@router.delete("/guilds/{guild_id}")
+async def delete_guild(guild_id: str, admin: AdminUser = Depends(require_admin)):
+    target_guild = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+    if not target_guild:
+        raise HTTPException(status_code=404, detail="Gilda non trovata.")
+    
+    await target_guild.delete()
+    return {"status": "success", "message": "Gilda rimossa."}

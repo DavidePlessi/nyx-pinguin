@@ -176,6 +176,12 @@ const onGuildScan = () => {
     
     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 border-b border-gray-800 pb-4">
       <h2 class="font-rajdhani text-2xl md:text-3xl font-bold neon-text-purple text-center md:text-left">{{ t('music.title') || 'MUSIC PLAYER' }}</h2>
+      <div class="flex items-center gap-4">
+        <router-link to="/" class="text-sm text-cyber-cyan hover:text-white transition-colors whitespace-nowrap font-bold flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          BACK TO HUB
+        </router-link>
+      </div>
     </div>
 
     <div v-if="error" class="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-md mb-6 font-mono">

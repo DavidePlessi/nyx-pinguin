@@ -22,6 +22,16 @@ services:
     restart: always
     env_file:
       - .env
-    # Il bot ha bisogno solo di dialogare con MongoDB e Discord
+    depends_on:
+      - api
+
+  guild_bot:
+    build:
+      context: ../guild-bot
+      dockerfile: Dockerfile
+    container_name: pinguin_guild_bot
+    restart: always
+    env_file:
+      - .env
     depends_on:
       - api

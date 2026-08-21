@@ -8,15 +8,26 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || ''
 const sessionToken = ref<string | null>(localStorage.getItem('dab_session_token'))
 const router = useRouter()
 
-const activeTab = ref('overview') // 'overview', 'users', 'system', 'api_instances'
+const activeTab = ref('overview') // 'overview', 'users', 'system', 'api_instances', 'drops', 'guilds'
+const userRole = ref('user')
 
 const isLoading = ref(false)
 //const error = ref('')
+
+
 
 const apiInstances = ref({
   piped: '',
   invidious: ''
 })
+
+const guildConfigState = ref({
+  guild_id: '',
+  member_role_id: ''
+})
+
+const allAppGuilds = ref<any[]>([])
+const newGuildForm = ref({ name: '', guild_id: '' })
 
 const stats = ref({
   total_users: 0,
@@ -65,12 +76,7 @@ const handleModalCancel = () => {
   modalState.value.show = false
 }
 
-const logout = () => {
-  localStorage.removeItem('dab_session_token')
-  sessionToken.value = null
-  if (logsInterval) clearInterval(logsInterval)
-  router.replace({ name: 'Login' })
-}
+
 
 const fetchStats = async () => {
   try {
@@ -120,6 +126,87 @@ const fetchInstances = async () => {
   } catch (e) {
     console.error("Failed to fetch instances", e)
   }
+}
+
+
+const saveGuildConfig = async () => {
+  if (!guildConfigState.value.guild_id || !guildConfigState.value.member_role_id) return
+  isLoading.value = true
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/drops/guilds/${guildConfigState.value.guild_id}/config?member_role_id=${guildConfigState.value.member_role_id}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+    })
+    if (res.ok) {
+      await showAlert(t('dashboard.successSaveMessage'), "SUCCESS")
+    } else {
+      await showAlert(t('dashboard.errorSaving'), "ERROR")
+    }
+  } catch (e) {
+    await showAlert("Network error", "ERROR")
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const fetchAllAppGuilds = async () => {
+  if (userRole.value !== 'admin') return
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/admin/guilds`, {
+      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+    })
+    if (res.ok) allAppGuilds.value = await res.json()
+  } catch (e) { console.error(e) }
+}
+
+const addAppGuild = async () => {
+  if (!newGuildForm.value.name || !newGuildForm.value.guild_id) return
+  isLoading.value = true
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/admin/guilds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken.value}` },
+      body: JSON.stringify(newGuildForm.value)
+    })
+    if (res.ok) {
+      newGuildForm.value = { name: '', guild_id: '' }
+      await fetchAllAppGuilds()
+      await showAlert(t('adminPanel.guildAdded'), "SUCCESS")
+    } else {
+      const data = await res.json()
+      await showAlert(data.detail, "ERROR")
+    }
+  } catch(e) { }
+  finally { isLoading.value = false }
+}
+
+const deleteAppGuild = async (id: string) => {
+  if (!(await showConfirm(t('adminPanel.confirmRemoveGuild'), "ATTENZIONE"))) return
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/admin/guilds/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+    })
+    if (res.ok) await fetchAllAppGuilds()
+  } catch(e) {}
+}
+
+const updateGuildName = async (guild: any) => {
+  isLoading.value = true
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/admin/guilds/${guild.guild_id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken.value}` },
+      body: JSON.stringify({ name: guild.name })
+    })
+    if (res.ok) {
+      await showAlert("Nome gilda aggiornato con successo!", "SUCCESS")
+    } else {
+      const data = await res.json()
+      await showAlert(data.detail, "ERROR")
+    }
+  } catch(e) { }
+  finally { isLoading.value = false }
 }
 
 const saveInstances = async () => {
@@ -252,6 +339,7 @@ const changeTab = (tab: string) => {
     if (tab === 'overview') fetchStats()
     if (tab === 'users') fetchUsers()
     if (tab === 'api_instances') fetchInstances()
+    if (tab === 'guilds') fetchAllAppGuilds()
   }
 }
 
@@ -264,7 +352,10 @@ onMounted(() => {
       const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
       }).join('')))
-      if (!payload || payload.role !== 'admin') {
+      
+      userRole.value = payload.role || 'user'
+      
+      if (userRole.value !== 'admin') {
         router.replace({ name: 'Dashboard' })
         return
       }
@@ -299,38 +390,50 @@ onUnmounted(() => {
     <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 border-b border-gray-800 pb-4">
       <h2 class="font-rajdhani text-2xl md:text-3xl font-bold neon-text-cyan text-center md:text-left">{{ t('adminPanel.title') }}</h2>
       <div class="flex items-center gap-4">
-        <router-link to="/" class="text-sm text-cyber-cyan hover:text-white transition-colors whitespace-nowrap font-bold">
-          {{ t('adminPanel.backToDashboard') }}
+        <router-link to="/" class="text-sm text-cyber-cyan hover:text-white transition-colors whitespace-nowrap font-bold flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          BACK TO HUB
         </router-link>
-        <button @click="logout" class="text-sm text-gray-400 hover:text-cyber-pink transition-colors whitespace-nowrap">{{ t('dashboard.logout') }}</button>
       </div>
     </div>
 
     <!-- TABS NAV -->
     <div class="flex flex-wrap border-b border-gray-800 mb-6">
       <button 
+        v-if="userRole === 'admin'"
         @click="changeTab('overview')"
         :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'overview' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
       >
         OVERVIEW
       </button>
       <button 
+        v-if="userRole === 'admin'"
         @click="changeTab('users')"
         :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'users' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
       >
         USERS
       </button>
       <button 
+        v-if="userRole === 'admin'"
         @click="changeTab('system')"
         :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'system' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
       >
         SYSTEM
       </button>
       <button 
+        v-if="userRole === 'admin'"
         @click="changeTab('api_instances')"
         :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'api_instances' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
       >
         API INSTANCES
+      </button>
+
+      <button 
+        v-if="userRole === 'admin'"
+        @click="changeTab('guilds')"
+        :class="['px-6 py-3 font-rajdhani text-lg font-bold transition-colors', activeTab === 'guilds' ? 'text-cyber-cyan border-b-2 border-cyber-cyan' : 'text-gray-500 hover:text-gray-300']"
+      >
+        GUILDS
       </button>
     </div>
 
@@ -360,8 +463,9 @@ onUnmounted(() => {
           <input v-model="newUserForm.discord_id" type="text" :placeholder="t('adminPanel.users.discordId')" class="neon-input col-span-1 md:col-span-4 w-full">
           <input v-model="newUserForm.username" type="text" :placeholder="t('adminPanel.users.username')" class="neon-input col-span-1 md:col-span-4 w-full">
           <select v-model="newUserForm.role" class="neon-input bg-gray-900 col-span-1 md:col-span-2 w-full">
-            <option value="user">{{ t('adminPanel.users.roleUser') }}</option>
-            <option value="admin">{{ t('adminPanel.users.roleAdmin') }}</option>
+            <option value="user">USER</option>
+            <option value="guild_admin">GUILD ADMIN</option>
+            <option value="admin">GLOBAL ADMIN</option>
           </select>
           <button @click="addUser" :disabled="isLoading" class="neon-btn-primary col-span-1 md:col-span-2 w-full">{{ t('adminPanel.users.add') }}</button>
         </div>
@@ -383,21 +487,28 @@ onUnmounted(() => {
               <td class="p-4 font-mono text-gray-300 text-sm whitespace-nowrap">{{ u.discord_id }}</td>
               <td class="p-4 text-gray-300">{{ u.username }}</td>
               <td class="p-4">
-                <span :class="u.role === 'admin' ? 'text-cyber-pink font-bold' : 'text-gray-400'">
-                  {{ u.role.toUpperCase() }}
-                </span>
+                <span v-if="u.role === 'admin'" class="text-cyber-pink font-bold">GLOBAL ADMIN</span>
+                <span v-else-if="u.role === 'guild_admin'" class="text-yellow-500 font-bold">GUILD ADMIN</span>
+                <span v-else class="text-gray-400">USER</span>
               </td>
               <td class="p-4 text-gray-500 text-sm whitespace-nowrap">{{ new Date(u.added_at).toLocaleString() }}</td>
               <td class="p-4 text-right space-x-2 whitespace-nowrap">
                 <button 
-                  v-if="u.role === 'user'" 
+                  v-if="u.role !== 'admin'" 
                   @click="updateUserRole(u.discord_id, 'admin')" 
                   class="text-xs bg-gray-800 hover:bg-gray-700 text-cyber-cyan px-2 py-1 rounded transition-colors"
                 >
                   Make Admin
                 </button>
                 <button 
-                  v-if="u.role === 'admin'" 
+                  v-if="u.role !== 'guild_admin'" 
+                  @click="updateUserRole(u.discord_id, 'guild_admin')" 
+                  class="text-xs bg-gray-800 hover:bg-gray-700 text-yellow-500 px-2 py-1 rounded transition-colors"
+                >
+                  Make Guild Admin
+                </button>
+                <button 
+                  v-if="u.role !== 'user'" 
                   @click="updateUserRole(u.discord_id, 'user')" 
                   class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-2 py-1 rounded transition-colors"
                 >
@@ -482,6 +593,67 @@ onUnmounted(() => {
         >
           {{ isLoading ? 'SALVATAGGIO...' : 'SALVA ISTANZE' }}
         </button>
+      </div>
+    </div>
+
+
+
+    <!-- GUILDS TAB (Admin Solo) -->
+    <div v-if="activeTab === 'guilds'" class="space-y-6 animate-fade-in">
+      <div class="bg-gray-900/50 border border-gray-800 p-6 rounded mb-6">
+        <h3 class="font-rajdhani text-xl text-cyber-cyan mb-4">{{ t('adminPanel.addNewGuild') }}</h3>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <input v-model="newGuildForm.name" type="text" placeholder="Nome Gilda (es. Nyx Pinguin)" class="neon-input col-span-1 md:col-span-5 w-full">
+          <input v-model="newGuildForm.guild_id" type="text" :placeholder="t('adminPanel.discordServerId')" class="neon-input col-span-1 md:col-span-4 w-full">
+          <button @click="addAppGuild" :disabled="isLoading" class="neon-btn-primary col-span-1 md:col-span-3 w-full">{{ t('adminPanel.addGuild') }}</button>
+        </div>
+      </div>
+
+      <div class="bg-gray-900/50 border border-gray-800 rounded overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-gray-800/50 text-gray-400 font-rajdhani uppercase text-sm">
+              <th class="p-4 border-b border-gray-800">Nome Gilda</th>
+              <th class="p-4 border-b border-gray-800">Guild ID</th>
+              <th class="p-4 border-b border-gray-800">{{ t('adminPanel.memberRoleId') }}</th>
+              <th class="p-4 border-b border-gray-800 text-right">{{ t('adminPanel.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="g in allAppGuilds" :key="g.guild_id" class="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
+              <td class="p-4 text-gray-200 font-bold">
+                <input v-model="g.name" type="text" placeholder="Nome Gilda" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white">
+                <button 
+                  @click="updateGuildName(g)" 
+                  class="ml-2 text-xs bg-gray-800 hover:bg-gray-700 text-cyber-cyan px-2 py-1.5 rounded transition-colors"
+                >
+                  Aggiorna
+                </button>
+              </td>
+              <td class="p-4 font-mono text-gray-400 text-sm whitespace-nowrap">{{ g.guild_id }}</td>
+              <td class="p-4 text-gray-400">
+                <input v-model="g.member_role_id" type="text" placeholder="ID Ruolo Discord" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white">
+                <button 
+                  @click="guildConfigState.guild_id = g.guild_id; guildConfigState.member_role_id = g.member_role_id; saveGuildConfig()" 
+                  class="ml-2 text-xs bg-gray-800 hover:bg-gray-700 text-cyber-cyan px-2 py-1.5 rounded transition-colors"
+                >
+                  {{ t('adminPanel.saveRole') }}
+                </button>
+              </td>
+              <td class="p-4 text-right whitespace-nowrap">
+                <button 
+                  @click="deleteAppGuild(g.guild_id)" 
+                  class="text-xs bg-red-900/40 hover:bg-red-800 text-red-200 px-2 py-1 rounded transition-colors"
+                >
+                  {{ t('adminPanel.remove') }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="allAppGuilds.length === 0">
+              <td colspan="4" class="p-4 text-center text-gray-500 italic">{{ t('adminPanel.noGuildsConfigured') }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

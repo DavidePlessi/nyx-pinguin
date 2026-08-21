@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-py-cord[voice]
+discord.py
 motor<3.6.0
 beanie
 python-dotenv
