@@ -1,5 +1,5 @@
 discord.py
-motor
+motor<3.6.0
 beanie
 python-dotenv
 httpx
