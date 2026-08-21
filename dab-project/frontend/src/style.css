@@ -54,9 +54,14 @@
     box-shadow: 0 0 10px var(--color-cyber-purple-dim);
   }
 
-  .neon-btn-primary:hover {
+  .neon-btn-primary:hover:not(:disabled) {
     box-shadow: 0 0 20px var(--color-cyber-purple), 0 0 40px var(--color-cyber-pink);
     transform: translateY(-2px);
+  }
+
+  .neon-btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed filter grayscale;
+    box-shadow: none;
   }
   
   .neon-input {

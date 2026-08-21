@@ -65,7 +65,8 @@ import asyncio
 @router.get("/import-build")
 async def import_build(url: str = Query(..., description="L'URL o lo slug della build di Questlog")):
     # 1. Estrai lo slug se viene fornito l'URL
-    slug = url.split('/')[-1] if '/' in url else url
+    url_without_query = url.split('?')[0]
+    slug = url_without_query.split('/')[-1] if '/' in url_without_query else url_without_query
     
     questlog_build_api = f'https://questlog.gg/throne-and-liberty/api/trpc/characterBuilder.getCharacter?input={{"slug":"{slug}"}}'
     

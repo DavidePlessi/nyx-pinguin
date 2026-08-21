@@ -209,7 +209,7 @@ onUnmounted(() => {
           <label class="block font-rajdhani text-gray-400 mb-2 uppercase tracking-wide">{{ t('dashboard.guildIdLabel') }}</label>
           <div class="flex gap-2">
             <input v-model="guildId" type="text" class="neon-input flex-1" :placeholder="t('dashboard.guildIdPlaceholder')">
-            <button @click="loadConfig" :disabled="isLoading" class="bg-gray-800 hover:bg-gray-700 px-4 rounded border border-gray-600 transition-colors">
+            <button @click="loadConfig" :disabled="isLoading" class="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 rounded border border-gray-600 transition-colors">
               {{ t('dashboard.scan') }}
             </button>
           </div>
