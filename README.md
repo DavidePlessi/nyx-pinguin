@@ -1,29 +1,34 @@
-# Nyx Pinguin // Discord Audio Broadcaster
+# Nyx Pinguin // Advanced Guild System
 
-Nyx Pinguin is a robust, multi-component Discord bot and web dashboard designed to broadcast live audio from a "speaker" in a single source voice channel to multiple "listener" bots scattered across various destination voice channels. 
-
-It is ideal for live events, multi-channel announcements, and server-wide audio distribution without dropping audio quality or increasing latency unnecessarily.
+Nyx Pinguin is a robust, multi-component Discord bot and web dashboard designed to manage various aspects of a gaming guild. Originally built as a Discord Audio Broadcaster, it has evolved into a comprehensive suite including a real-time Audio Matrix, a Music Player, and an advanced Loot/Drop Management System connected to Questlog.
 
 ## 🏗️ Architecture
 
-The project is split into three main microservices that communicate via a shared MongoDB database.
+The project is split into four main microservices that communicate via a shared MongoDB database.
 
-1. **`bot-node/` (Audio Engine - Node.js)**
+1. **`bot-node/` (Audio & Music Engine - Node.js)**
    - Powered by `discord.js` and `@discordjs/voice`.
-   - Connects to Discord voice channels directly.
-   - Captures raw Opus audio packets from the source channel and dynamically clones/routes them to the destination bots without transcoding, ensuring ultra-low latency.
+   - **Audio Matrix**: Captures raw Opus audio packets from a source channel and dynamically clones/routes them to destination bots without transcoding, ensuring ultra-low latency for cross-channel or cross-server broadcasting.
+   - **Music Player**: Includes a complete music streaming engine for playing audio tracks inside Discord voice channels.
    - Listens to commands via IPC (Inter-Process Communication) and streams its logs to the database.
 
-2. **`backend/` (API & Web Server - Python / FastAPI)**
-   - Handles the Discord OAuth2 authentication for dashboard access.
-   - Interacts with the Discord API to dynamically fetch servers, channels, and roles.
-   - Saves configurations in MongoDB and uses a Tailable Cursor to send real-time commands (IPC) to the Node.js bot.
+2. **`guild-bot/` (Guild & Drops Manager - Python / discord.py)**
+   - Handles slash commands for the server (e.g., `/pinguin_drop_start`, `/pinguin_drop_cancel`).
+   - Manages interactive Discord UI components (Views/Buttons) to allow users to apply for drops directly from Discord.
+   - Integrates with the Questlog API to fetch item details and thumbnails dynamically.
+
+3. **`backend/` (API & Web Server - Python / FastAPI)**
+   - Handles Discord OAuth2 authentication for dashboard access.
+   - Saves configurations in MongoDB and uses a Tailable Cursor to send real-time commands to the Node.js bot.
+   - Provides REST endpoints for User Management, Build Management, and Drop Poll Assignment.
+   - Uses HTTPX to dispatch cross-service announcements (like declaring a drop winner) directly to Discord.
    - Serves the frontend application.
 
-3. **`frontend/` (Dashboard - Vue 3 + Tailwind CSS + Vite)**
-   - A cyberpunk/matrix-themed dashboard interface.
-   - Allows server administrators to configure the Source Channel, Authorized Speaker Role, and Destination Channels using intuitive dropdowns and checkboxes.
-   - Includes a live terminal for viewing the Node.js bot's logs in real-time.
+4. **`frontend/` (Dashboard - Vue 3 + Tailwind CSS + Vite)**
+   - A cyberpunk/matrix-themed dashboard interface with full i18n support (EN, IT, ES, FR, DE).
+   - **Broadcasting**: Configure Source Channels, Authorized Speaker Roles, and Destination Channels.
+   - **Drops System**: Users can draft their in-game builds (importing via Questlog links) and request "Primary" status approval.
+   - **Drops Admin**: Guild leaders can review builds, manage active Drop Polls, kick/add candidates, and assign drops, keeping a persistent historical record of all assignments.
 
 ---
 
@@ -32,7 +37,7 @@ The project is split into three main microservices that communicate via a shared
 - **Node.js** (v18+)
 - **Python** (v3.10+)
 - **MongoDB** (local or Atlas)
-- **A Discord Developer Application** with a Bot Token and OAuth2 configured.
+- **Discord Developer Applications** with Bot Tokens and OAuth2 configured.
 
 ---
 
@@ -40,30 +45,29 @@ The project is split into three main microservices that communicate via a shared
 
 ### 1. Database & Environment
 
-1. Rename the `dab-project/.env.example` to `dab-project/.env` (or create a `.env` in the `backend/` folder).
-2. Fill in the required values:
-   ```env
-   # Discord Dev Portal
-   DISCORD_CLIENT_ID=your_client_id
-   DISCORD_CLIENT_SECRET=your_client_secret
-   DISCORD_REDIRECT_URI=http://localhost:8000/api/oauth/callback # update for prod
+Rename the `.env.example` files to `.env` and fill in the required values:
+```env
+# Discord Dev Portal
+DISCORD_CLIENT_ID=your_client_id
+DISCORD_CLIENT_SECRET=your_client_secret
+DISCORD_REDIRECT_URI=http://localhost:8000/api/oauth/callback
 
-   # Discord Bot Tokens
-   DISCORD_PRIMARY_TOKEN=your_main_bot_token
-   DISCORD_AUX_TOKENS=comma,separated,list,of,secondary,bot,tokens
+# Discord Bot Tokens
+DISCORD_PRIMARY_TOKEN=your_main_node_bot_token
+DISCORD_AUX_TOKENS=comma,separated,list,of,secondary,bot,tokens
+GUILD_BOT_TOKEN=your_python_guild_bot_token
 
-   # Database
-   MONGO_URI=mongodb://localhost:27017
-   MONGO_DB_NAME=discord_pinguin
-   ```
+# Database
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB_NAME=discord_pinguin
+```
 
 ### 2. Backend (FastAPI)
 
 ```bash
 cd dab-project/backend
 python -m venv .venv
-# On Windows: .venv\Scripts\activate
-# On Mac/Linux: source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python main_api.py
 ```
@@ -76,8 +80,7 @@ cd dab-project/frontend
 npm install
 npm run build
 ```
-*(Once built, the Python backend will automatically serve the static files from the `dist/` folder when accessing `http://localhost:8000`)*. 
-*(If you want to run the frontend in dev mode with hot-reloading, run `npm run dev` and access it on the Vite port).*
+*(Once built, the Python backend will automatically serve the static files. For dev mode, run `npm run dev`)*.
 
 ### 4. Audio Engine (Node Bot)
 
@@ -86,23 +89,38 @@ cd dab-project/bot-node
 npm install
 npm start
 ```
-*The bot will connect to Discord and wait for configuration updates via MongoDB.*
+
+### 5. Guild Bot (Python)
+
+```bash
+cd guild-bot
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+*Alternatively, you can run the entire stack using Docker Compose: `docker-compose up -d --build`.*
 
 ---
 
-## 🎛️ Usage
+## 🕹️ Key Features & Usage
 
-1. Go to `http://localhost:8000` (or your production URL).
-2. Click **Authenticate** to log in via Discord.
-3. Enter your **Guild ID** (Server ID) and click **SCAN**.
-4. Select the **Source Channel** where the speaker will talk.
-5. Select the **Authorized Role** (optional) to filter out background noise from unauthorized users in the source channel.
-6. Check the **Destination Channels** where you want the bot clones to join and reproduce the audio.
-7. Click **Save to Mainframe**. The bot will immediately connect to the voice channels and start listening/broadcasting.
+### 🎙️ Audio Broadcasting (Matrix)
+Configure audio routing from the web dashboard. The "Listener" bot captures audio from the source channel and forwards it to the "Speaker" bots in destination channels.
+
+### ⚔️ Build Management
+Users log into the dashboard via Discord, navigate to the **Drops System**, and paste their Questlog build URL. The system automatically fetches the equipment. Once saved, users can request Admin approval to set it as their **Primary Build**.
+
+### 🎁 Drop Polls & Assignment
+1. An admin starts a drop poll in Discord using `/pinguin_drop_start <item_name>`.
+2. Users click the **Apply** button on the interactive Discord message. The bot verifies if the requested item is present in their approved Primary Build.
+3. Admins visit the **Drops Management** web interface to review applicants, approve the winner, or cancel the drop.
+4. The backend automatically closes the poll, removes the interactive buttons from Discord, and posts an official announcement with the winner and participants.
 
 ---
 
-## 📝 License
+## 📜 License
 
 Proprietary / Internal Use. 
 Designed and maintained for [Fiveamtech](https://fiveamtech.it).
