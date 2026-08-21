@@ -79,7 +79,8 @@
       "p1": "Per far funzionare il sistema di broadcasting, è necessario invitare sia il bot \"Listener\" (che ascolta l'audio) sia i bot \"Speaker\" (che riproducono l'audio nei canali di destinazione).",
       "listener": "Listener:",
       "speaker": "Speaker",
-      "invite": "Invita"
+      "invite": "Invita",
+      "secretary": "Secretary"
     },
     "section2": {
       "title": "2. Come recuperare il Guild ID (ID del Server)",
@@ -122,6 +123,20 @@
       "overview": "Panoramica: Visualizza le statistiche globali del sistema (utenti totali, server configurati, server attivi).",
       "users": "Utenti: Gestisci l'accesso all'applicazione web. Puoi aggiungere nuovi utenti tramite il loro ID Discord, assegnare loro il ruolo di 'Admin' o 'Utente', e revocarne l'accesso.",
       "system": "Sistema: Visualizza i log in tempo reale del bot e forza il riavvio del sistema (bot e API) in caso di anomalie."
+    },
+    "sectionDrops": {
+      "title": "7. Sistema di Drop e Build",
+      "p1": "Il sistema di Drop ti permette di tenere traccia della tua build e candidarti per gli oggetti desiderati.",
+      "builds": "Creazione Build: Puoi configurare e salvare una build come 'Bozza' dal menu Drops System. Inserisci classe, stile di gioco, link di Questlog e seleziona i singoli oggetti per la tua build.",
+      "primary": "Build Primaria: Richiedi l'approvazione della tua build agli Admin. Quando sarÃ  approvata, diventerÃ  la tua Build Primaria e potrai usarla per i drop. Tutti i vecchi dati passeranno in stato di bozza.",
+      "admin": "Pannello Drop (Admin): Gli amministratori possono visualizzare tutte le build e approvarle. È anche possibile vedere la cronologia delle assegnazioni passate (Assignment History)."
+    },
+    "sectionPolls": {
+      "title": "8. Sondaggi di Assegnazione (Drops Poll)",
+      "p1": "Gli oggetti trovati durante le attivitÃ  possono essere distribuiti ai membri della gilda tramite un sistema di sondaggi trasparenti.",
+      "start": "Avviare un Sondaggio: Usa il comando Discord /pinguin_drop_start <nome-oggetto> all'interno del canale. VerrÃ  creato un messaggio interattivo con l'immagine dell'oggetto.",
+      "candidate": "Come Candidarsi: Clicca su 'Candidati per il Drop' nel messaggio Discord. Attenzione: puoi partecipare solo se l'oggetto Ã¨ presente nella tua Build Primaria approvata per quella gilda.",
+      "assign": "Assegnazione o Annullamento: Tramite la dashboard (Drops Management), gli admin possono visualizzare i candidati in tempo reale al sondaggio. Possono aggiungere manualmente altri utenti o rimuovere quelli presenti, decidere a chi assegnare il drop ('Vince') oppure 'Annullare' il sondaggio. L'azione eliminerÃ  il tasto di candidatura su Discord e invierÃ  un messaggio riepilogativo con il vincitore e tutti i partecipanti."
     }
   },
   "adminPanel": {

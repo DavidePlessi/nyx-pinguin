@@ -79,7 +79,8 @@
       "p1": "Para que el sistema de transmisión funcione, debes invitar tanto al bot \"Listener\" (que escucha el audio) como a los bots \"Speaker\" (que reproducen el audio en los canales de destino).",
       "listener": "Listener (Oyente):",
       "speaker": "Speaker (Altavoz)",
-      "invite": "Invitar"
+      "invite": "Invitar",
+      "secretary": "Secretario"
     },
     "section2": {
       "title": "2. Cómo obtener el Guild ID (ID del Servidor)",
@@ -122,6 +123,20 @@
       "overview": "Visión General: Vea las estadísticas globales del sistema (usuarios totales, servidores configurados, servidores activos).",
       "users": "Usuarios: Administre el acceso a la aplicación web. Puede agregar nuevos usuarios a través de su ID de Discord, asignarles roles de 'Administrador' o 'Usuario' y revocar su acceso.",
       "system": "Sistema: Vea los registros del bot en tiempo real y fuerce un reinicio del sistema (bot y API) en caso de anomalías."
+    },
+    "sectionDrops": {
+      "title": "7. Sistema de Drops y Builds",
+      "p1": "El sistema de Drops te permite seguir tu build y postularte para objetos deseados.",
+      "builds": "CreaciÃ³n de Build: Configura y guarda un build en borrador desde el menÃº Drops System. Ingresa clase, estilo de juego, enlace de Questlog y selecciona objetos individuales.",
+      "primary": "Build Principal: Solicita la aprobaciÃ³n de tu build a los administradores. Una vez aprobado, se convierte en tu Build Principal. Los builds anteriores pasarÃ¡n a borrador.",
+      "admin": "Panel de Drops (Admin): Los administradores pueden ver todos los builds y aprobarlos, asÃ­ como consultar el historial de asignaciones pasadas."
+    },
+    "sectionPolls": {
+      "title": "8. Encuestas de AsignaciÃ³n de Drops",
+      "p1": "Los objetos encontrados pueden distribuirse mediante un sistema de encuestas transparente.",
+      "start": "Iniciar una Encuesta: Usa el comando de Discord /pinguin_drop_start <nombre-objeto> en el canal. Se crearÃ¡ un mensaje interactivo.",
+      "candidate": "CÃ³mo Postularse: Haz clic en 'Postularse para el Drop' en el mensaje de Discord. Nota: solo puedes participar si el objeto estÃ¡ en tu Build Principal aprobado.",
+      "assign": "AsignaciÃ³n o CancelaciÃ³n: Desde el panel (Drops Management), los admins pueden ver los candidatos en tiempo real. Pueden agregar/eliminar usuarios, elegir el ganador o cancelar la encuesta. Esto eliminarÃ¡ el botÃ³n de postularse en Discord y enviarÃ¡ un mensaje de resumen."
     }
   },
   "adminPanel": {

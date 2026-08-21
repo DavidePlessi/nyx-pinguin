@@ -59,6 +59,10 @@ const goBack = () => {
             <span class="font-bold text-cyber-cyan">{{ t('manual.section1.speaker') }} 4:</span><br/>
             <a href="https://discord.com/oauth2/authorize?client_id=1536018514379411457&permissions=36701184&integration_type=0&scope=bot" target="_blank" class="text-sm text-blue-400 hover:underline break-all">{{ t('manual.section1.invite') }} Speaker 4</a>
           </div>
+          <div>
+            <span class="font-bold text-cyber-cyan">{{ t('manual.section1.secretary') }}:</span><br/>
+            <a href="https://discord.com/oauth2/authorize?client_id=1538545059581009990&permissions=3072&integration_type=0&scope=bot+applications.commands" target="_blank" class="text-sm text-blue-400 hover:underline break-all">{{ t('manual.section1.invite') }} {{ t('manual.section1.secretary') }}</a>
+          </div>
         </div>
       </section>
 
@@ -154,6 +158,46 @@ const goBack = () => {
         </ul>
       </section>
 
+      <hr class="my-8 border-gray-800 no-print" />
+
+      <section>
+        <h3 class="text-2xl font-bold text-cyber-purple mb-4 flex items-center gap-2">
+          {{ t('manual.sectionDrops.title') }}
+        </h3>
+        <p class="mb-4">{{ t('manual.sectionDrops.p1') }}</p>
+        <ul class="space-y-4">
+          <li class="bg-black/20 p-4 rounded border border-gray-800">
+            {{ t('manual.sectionDrops.builds') }}
+          </li>
+          <li class="bg-black/20 p-4 rounded border border-gray-800">
+            {{ t('manual.sectionDrops.primary') }}
+          </li>
+          <li class="bg-black/20 p-4 rounded border border-gray-800">
+            {{ t('manual.sectionDrops.admin') }}
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 class="text-2xl font-bold text-cyber-purple mb-4 flex items-center gap-2">
+          {{ t('manual.sectionPolls.title') }}
+        </h3>
+        <p class="mb-4">{{ t('manual.sectionPolls.p1') }}</p>
+        <ul class="space-y-4">
+          <li class="bg-black/20 p-4 rounded border border-gray-800">
+            <strong class="text-cyber-cyan font-mono text-xl">/pinguin_drop_start</strong>
+            <p class="mt-2">{{ t('manual.sectionPolls.start') }}</p>
+          </li>
+          <li class="bg-black/20 p-4 rounded border border-gray-800">
+            <strong class="text-cyber-cyan text-lg">Candidatura:</strong>
+            <p class="mt-2">{{ t('manual.sectionPolls.candidate') }}</p>
+          </li>
+          <li class="bg-black/20 p-4 rounded border border-gray-800">
+            <strong class="text-cyber-cyan text-lg">Assegnazione:</strong>
+            <p class="mt-2">{{ t('manual.sectionPolls.assign') }}</p>
+          </li>
+        </ul>
+      </section>
     </div>
   </div>
 </template>

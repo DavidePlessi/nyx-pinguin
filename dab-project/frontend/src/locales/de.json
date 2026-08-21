@@ -79,7 +79,8 @@
       "p1": "Damit das Broadcasting-System funktioniert, müssen Sie sowohl den \"Listener\"-Bot (der den Ton hört) als auch die \"Speaker\"-Bots (die den Ton in Zielkanälen wiedergeben) einladen.",
       "listener": "Listener:",
       "speaker": "Speaker",
-      "invite": "Einladen"
+      "invite": "Einladen",
+      "secretary": "Sekretär"
     },
     "section2": {
       "title": "2. So erhalten Sie die Guild ID (Server-ID)",
@@ -122,6 +123,20 @@
       "overview": "Übersicht: Sehen Sie globale Systemstatistiken (Gesamtbenutzer, konfigurierte Server, aktive Server).",
       "users": "Benutzer: Verwalten Sie den Zugriff auf die Webanwendung. Sie können neue Benutzer über ihre Discord-ID hinzufügen, ihnen 'Admin'- oder 'Benutzer'-Rollen zuweisen und ihren Zugriff widerrufen.",
       "system": "System: Zeigen Sie die Live-Bot-Protokolle an und erzwingen Sie bei Anomalien einen Systemneustart (Bot und API)."
+    },
+    "sectionDrops": {
+      "title": "7. Drop- und Build-System",
+      "p1": "Mit dem Drop-System kÃ¶nnen Sie Ihren Build verfolgen und sich fÃ¼r gewÃ¼nschte GegenstÃ¤nde bewerben.",
+      "builds": "Build-Erstellung: Konfigurieren und speichern Sie einen Entwurf im Drops System-MenÃ¼. Geben Sie Klasse, Spielstil, Questlog-Link ein und wÃ¤hlen Sie GegenstÃ¤nde aus.",
+      "primary": "PrimÃ¤rer Build: Fordern Sie die Genehmigung bei Administratoren an. Sobald genehmigt, wird er zu Ihrem PrimÃ¤ren Build. Ã„ltere Builds werden wieder zu EntwÃ¼rfen.",
+      "admin": "Drop-Panel (Admin): Administratoren kÃ¶nnen alle Builds sehen, genehmigen und den Zuweisungsverlauf Ã¼berprÃ¼fen."
+    },
+    "sectionPolls": {
+      "title": "8. Drop-Zuweisungsumfragen",
+      "p1": "Gefundene GegenstÃ¤nde kÃ¶nnen Ã¼ber ein transparentes Umfragesystem verteilt werden.",
+      "start": "Umfrage starten: Verwenden Sie den Discord-Befehl /pinguin_drop_start <item-name> im Kanal. Ein interaktive Nachricht wird erstellt.",
+      "candidate": "Wie man sich bewirbt: Klicken Sie auf 'FÃ¼r Drop bewerben' in der Discord-Nachricht. Hinweis: Sie kÃ¶nnen sich nur bewerben, wenn der Gegenstand in Ihrem genehmigten PrimÃ¤ren Build enthalten ist.",
+      "assign": "Zuweisung oder Stornierung: Ãœber das Dashboard (Drops Management) sehen Admins Bewerber in Echtzeit. Sie kÃ¶nnen Benutzer hinzufÃ¼gen/entfernen, einen Gewinner wÃ¤hlen oder die Umfrage stornieren. Dadurch wird der Button auf Discord entfernt und eine Zusammenfassung gesendet."
     }
   },
   "adminPanel": {

@@ -79,7 +79,8 @@
       "p1": "To make the broadcasting system work, you need to invite both the \"Listener\" bot (which listens to the audio) and the \"Speaker\" bots (which reproduce the audio in destination channels).",
       "listener": "Listener:",
       "speaker": "Speaker",
-      "invite": "Invite"
+      "invite": "Invite",
+      "secretary": "Secretary"
     },
     "section2": {
       "title": "2. How to get the Guild ID (Server ID)",
@@ -122,6 +123,20 @@
       "overview": "Overview: View global system statistics (total users, configured servers, active servers).",
       "users": "Users: Manage access to the web application. You can add new users via their Discord ID, assign them 'Admin' or 'User' roles, and revoke their access.",
       "system": "System: View live bot logs and force a system restart (bot and API) in case of anomalies."
+    },
+    "sectionDrops": {
+      "title": "7. Drops & Build System",
+      "p1": "The Drop system allows you to track your build and apply for desired items.",
+      "builds": "Build Creation: Configure and save a draft build from the Drops System menu. Enter class, playstyle, Questlog link, and select individual items for your build.",
+      "primary": "Primary Build: Request approval for your build from Admins. Once approved, it becomes your Primary Build and can be used for drops. Old builds will revert to draft status.",
+      "admin": "Drops Panel (Admin): Admins can view all builds and approve them. They can also check the past assignment history."
+    },
+    "sectionPolls": {
+      "title": "8. Drop Assignment Polls",
+      "p1": "Items found during activities can be distributed to guild members via a transparent polling system.",
+      "start": "Starting a Poll: Use the Discord command /pinguin_drop_start <item-name> in the channel. An interactive message with the item image will be created.",
+      "candidate": "How to Apply: Click 'Apply for Drop' on the Discord message. Note: you can only apply if the item is present in your approved Primary Build for that guild.",
+      "assign": "Assignment or Cancellation: From the dashboard (Drops Management), admins can view poll candidates in real-time. They can manually add/remove users, decide who 'Wins' the drop, or 'Cancel' the poll. This will remove the apply button on Discord and send a summary message with the winner and all participants."
     }
   },
   "adminPanel": {
