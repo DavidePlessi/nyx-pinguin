@@ -180,6 +180,8 @@ const fetchAllBuilds = async () => {
 }
 
 const activePolls = ref<any[]>([])
+const lucentAssignments = ref<Record<string, Record<string, number>>>({})
+const lucentModalState = ref({ show: false, poll: null as any })
 
 const fetchPolls = async () => {
   if (!adminGuildId.value) return
@@ -219,6 +221,87 @@ const approveBuild = async (buildId: string) => {
     }
   } catch(e) {
     showAlert(t('drops.approveError'), "ERROR")
+  } finally { isLoading.value = false }
+}
+
+
+const openLucentModal = (poll: any) => {
+  lucentModalState.value = { show: true, poll }
+  // Initialize assignments if not present
+  if (!lucentAssignments.value[poll.id]) {
+    lucentAssignments.value[poll.id] = {}
+  }
+}
+
+const closeLucentModal = () => {
+  lucentModalState.value.show = false
+  lucentModalState.value.poll = null
+}
+
+const maximizeParticipants = (pollId: string) => {
+  const poll = activePolls.value.find(p => p.id === pollId)
+  if (!poll) return
+  
+  let available = poll.amount || 0
+  const candidates = [...(poll.candidates_info || [])].sort((a, b) => (a.amount || 0) - (b.amount || 0))
+  const newAssignments: Record<string, number> = {}
+  
+  for (const c of candidates) {
+    const req = c.amount || 0
+    if (available >= req) {
+      newAssignments[c.discord_id] = req
+      available -= req
+    } else {
+      newAssignments[c.discord_id] = available
+      available = 0
+    }
+  }
+  
+  lucentAssignments.value[pollId] = newAssignments
+}
+
+const proportionalDistribution = (pollId: string) => {
+  const poll = activePolls.value.find(p => p.id === pollId)
+  if (!poll) return
+  
+  const totalAvailable = poll.amount || 0
+  const candidates = poll.candidates_info || []
+  const totalRequested = candidates.reduce((sum, c) => sum + (c.amount || 0), 0)
+  
+  const newAssignments: Record<string, number> = {}
+  
+  if (totalRequested <= totalAvailable) {
+    for (const c of candidates) {
+      newAssignments[c.discord_id] = c.amount || 0
+    }
+  } else {
+    for (const c of candidates) {
+      newAssignments[c.discord_id] = Math.floor(((c.amount || 0) / totalRequested) * totalAvailable)
+    }
+  }
+  
+  lucentAssignments.value[pollId] = newAssignments
+}
+
+const assignLucent = async (pollId: string, assignments: Record<string, number>) => {
+  if (!(await showConfirm("Sei sicuro di voler assegnare i lucent in queste quantità?", "CONFERMA"))) return
+  isLoading.value = true
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/drops/guilds/${adminGuildId.value}/polls/${pollId}/assign_lucent`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${sessionToken.value}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignments })
+    })
+    if (res.ok) {
+      showAlert(t('drops.dropAssignedSuccess'), "SUCCESS")
+      fetchPolls()
+      fetchDropHistory()
+      closeLucentModal()
+    } else {
+      showAlert(t('drops.assignError'), "ERROR")
+    }
+  } catch(e) {
+    showAlert(t('drops.networkError'), "ERROR")
   } finally { isLoading.value = false }
 }
 
@@ -388,6 +471,83 @@ onMounted(() => {
         @cancel="handleModalCancel" 
       />
 
+      
+      <!-- Modale Assegnazione Lucent -->
+      <Teleport to="body">
+        <div v-if="lucentModalState.show && lucentModalState.poll" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div class="glass-panel p-6 max-w-4xl w-full border-t-4 border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.2)] max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-start mb-6 border-b border-gray-800 pb-4">
+              <div>
+                <h3 class="font-orbitron text-2xl text-yellow-500">{{ lucentModalState.poll.item_name }}</h3>
+                <p class="text-gray-400 font-mono">Totale disponibile: <strong class="text-yellow-400">{{ lucentModalState.poll.amount }}</strong> Lucent</p>
+              </div>
+              <button @click="closeLucentModal" class="text-gray-500 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            
+            <div class="flex gap-4 mb-6">
+              <button @click="maximizeParticipants(lucentModalState.poll.id)" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 py-2 px-4 rounded text-sm transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Fitta Maggior Numero
+              </button>
+              <button @click="proportionalDistribution(lucentModalState.poll.id)" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 py-2 px-4 rounded text-sm transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                Distribuzione Proporzionale
+              </button>
+            </div>
+
+            <div class="overflow-y-auto custom-scrollbar flex-1 pr-2">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div v-for="c in lucentModalState.poll.candidates_info" :key="c.discord_id" class="bg-gray-900/50 p-4 rounded border border-gray-700 flex flex-col justify-between">
+                  <div>
+                    <div class="flex justify-between items-start mb-2">
+                      <span @click="openUserDetails(c.discord_id, c.username)" class="text-gray-300 font-bold text-lg cursor-pointer hover:text-cyber-cyan hover:underline transition-colors">{{ c.username }}</span>
+                      <span class="bg-yellow-900/40 text-yellow-500 border border-yellow-700/50 px-2 py-0.5 rounded text-sm font-mono">
+                        Req: {{ c.amount }}
+                      </span>
+                    </div>
+                    <div class="text-sm text-gray-400 italic mb-4 bg-black/30 p-2 rounded border border-gray-800 break-words">
+                      "{{ c.reason }}"
+                    </div>
+                  </div>
+                  <div class="flex justify-between items-center mt-2 border-t border-gray-800 pt-3">
+                    <label class="text-sm text-gray-500 font-mono">Assegna:</label>
+                    <input type="number" 
+                      class="bg-gray-800 border border-gray-600 text-white text-lg p-1.5 rounded w-24 text-right focus:border-yellow-500 focus:outline-none" 
+                      :value="lucentAssignments[lucentModalState.poll.id]?.[c.discord_id] || 0"
+                      @input="(e) => {
+                        if (!lucentAssignments[lucentModalState.poll.id]) lucentAssignments[lucentModalState.poll.id] = {};
+                        lucentAssignments[lucentModalState.poll.id][c.discord_id] = parseInt((e.target as HTMLInputElement).value) || 0;
+                      }" 
+                    />
+                  </div>
+                </div>
+              </div>
+              <div v-if="!lucentModalState.poll.candidates_info || lucentModalState.poll.candidates_info.length === 0" class="text-center text-gray-500 italic py-8">
+                Nessun candidato per questo drop.
+              </div>
+            </div>
+
+            <div class="mt-6 border-t border-gray-800 pt-4 flex justify-between items-center">
+              <div class="text-gray-400 font-mono text-sm">
+                Totale assegnato: <strong :class="Object.values(lucentAssignments[lucentModalState.poll.id] || {}).reduce((a, b) => a + b, 0) > lucentModalState.poll.amount ? 'text-red-500' : 'text-green-400'">
+                  {{ Object.values(lucentAssignments[lucentModalState.poll.id] || {}).reduce((a, b) => a + b, 0) }}
+                </strong> / {{ lucentModalState.poll.amount }}
+              </div>
+              <div class="flex gap-3">
+                <button @click="closeLucentModal" class="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-orbitron rounded border border-gray-600 transition-colors">
+                  Annulla
+                </button>
+                <button @click="assignLucent(lucentModalState.poll.id, lucentAssignments[lucentModalState.poll.id] || {})" class="px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold font-orbitron rounded transition-colors shadow-[0_0_15px_rgba(234,179,8,0.4)]" :disabled="!lucentModalState.poll.candidates_info || lucentModalState.poll.candidates_info.length === 0">
+                  Conferma Assegnazione
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- Modale Dettagli Utente -->
       <Teleport to="body">
         <div v-if="userModalState.show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -512,13 +672,24 @@ onMounted(() => {
           <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             <div v-for="poll in activePolls" :key="poll.id" class="border border-cyber-purple/30 bg-gray-800/30 p-4 rounded flex flex-col justify-between">
               <div>
-                <h4 class="text-cyber-cyan font-bold font-rajdhani text-lg mb-2">{{ poll.item_name }}</h4>
+                <h4 class="text-cyber-cyan font-bold font-rajdhani text-lg mb-2 flex justify-between">
+                  {{ poll.item_name }}
+                  <span v-if="poll.poll_type === 'lucent'" class="text-yellow-400 text-sm">Totale: {{ poll.amount }}</span>
+                </h4>
                 <div class="mb-4">
                   <p class="text-xs text-gray-400 mb-2 uppercase tracking-wide border-b border-gray-700 pb-1 flex justify-between">
                     <span>{{ t('drops.candidates') }} ({{ poll.candidates_info?.length || 0 }})</span>
-                    <button @click="addCandidate(poll.id)" class="text-cyber-cyan hover:text-white transition-colors" :title="t('drops.addUser')">+ ADD</button>
+                    <button v-if="poll.poll_type !== 'lucent'" @click="addCandidate(poll.id)" class="text-cyber-cyan hover:text-white transition-colors" :title="t('drops.addUser')">+ ADD</button>
                   </p>
-                  <ul class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-2">
+                  
+                  <div v-if="poll.poll_type === 'lucent'" class="flex justify-center my-4">
+                    <button @click="openLucentModal(poll)" class="bg-gray-800 hover:bg-gray-700 text-yellow-500 font-rajdhani font-bold py-2 px-4 rounded border border-yellow-600 transition-colors flex items-center gap-2">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                      Gestisci Assegnazione Lucent
+                    </button>
+                  </div>
+                  
+                  <ul v-else class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-2">
                     <li v-for="c in poll.candidates_info" :key="c.discord_id" class="flex justify-between items-center text-sm bg-gray-900/50 p-1.5 rounded border border-gray-800">
                       <div class="flex items-center">
                         <span @click="openUserDetails(c.discord_id, c.username)" class="text-gray-300 truncate mr-2 cursor-pointer hover:text-cyber-cyan hover:underline transition-colors">{{ c.username }}</span>

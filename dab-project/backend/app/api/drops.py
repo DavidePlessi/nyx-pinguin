@@ -204,12 +204,14 @@ async def get_polls(guild_id: str, admin = Depends(get_current_guild_admin)):
     for p in polls:
         c_info = []
         candidate_reasons = getattr(p, "candidate_reasons", {})
+        candidate_amounts = getattr(p, "candidate_amounts", {})
         for c_id in p.candidates:
             user = await DropUser.find_one(DropUser.discord_id == c_id)
             c_info.append({
                 "discord_id": c_id,
                 "username": user.username if user else "Unknown",
-                "reason": candidate_reasons.get(c_id, "Sconosciuta")
+                "reason": candidate_reasons.get(c_id, "Sconosciuta"),
+                "amount": candidate_amounts.get(c_id, 0)
             })
         p_dict = p.model_dump()
         p_dict["candidates_info"] = c_info
@@ -306,7 +308,82 @@ async def assign_poll(guild_id: str, poll_id: str, payload: AssignPayload, admin
             except Exception as e:
                 print("Error sending discord msg:", e)
             
+
+class AssignLucentPayload(BaseModel):
+    assignments: dict[str, int] # user_id -> amount
+
+@router.post("/guilds/{guild_id}/polls/{poll_id}/assign_lucent")
+async def assign_lucent_poll(guild_id: str, poll_id: str, payload: AssignLucentPayload, admin: DropUser = Depends(get_current_guild_admin)):
+    poll = await DropPoll.get(ObjectId(poll_id))
+    if not poll or poll.guild_id != guild_id:
+        raise HTTPException(404, "Poll not found")
+    if poll.status != "open":
+        raise HTTPException(400, "Poll already closed")
+    if getattr(poll, "poll_type", "item") != "lucent":
+        raise HTTPException(400, "Not a lucent poll")
+    
+    poll.status = "closed"
+    await poll.save()
+    
+    # Crea history per ogni assegnazione
+    for user_id, amt in payload.assignments.items():
+        if amt > 0:
+            history = DropHistory(
+                guild_id=guild_id,
+                user_id=user_id,
+                item_id="lucent",
+                item_name=f"Lucent x{amt}",
+                category="currency",
+                assigned_by=admin.discord_id
+            )
+            await history.save()
+            
+    if poll.channel_id and settings.GUILD_BOT_TOKEN:
+        # Prepara campi per il messaggio discord
+        fields = []
+        for c_id in poll.candidates:
+            req_amt = poll.candidate_amounts.get(c_id, 0) if getattr(poll, "candidate_amounts", None) else 0
+            assigned_amt = payload.assignments.get(c_id, 0)
+            user_doc = await DropUser.find_one(DropUser.discord_id == c_id)
+            username = user_doc.username if user_doc else c_id
+            fields.append({
+                "name": username,
+                "value": f"<@{c_id}>\nRichiesti: {req_amt}\nRicevuti: {assigned_amt}"
+            })
+            
+        embed = {
+            "title": "💰 Assegnazione Lucent Completata!",
+            "description": f"I lucent sono stati distribuiti. Totale disponibile: **{getattr(poll, 'amount', 0)}**",
+            "color": 3066993,
+            "fields": fields
+        }
+        
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "Authorization": f"Bot {settings.GUILD_BOT_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            try:
+                # 1. Rimuovi i bottoni dal sondaggio
+                if poll.message_id:
+                    await client.patch(
+                        f"https://discord.com/api/v10/channels/{poll.channel_id}/messages/{poll.message_id}",
+                        json={"components": []},
+                        headers=headers
+                    )
+                # 2. Invia notifica
+                await client.post(
+                    f"https://discord.com/api/v10/channels/{poll.channel_id}/messages",
+                    json={"embeds": [embed]},
+                    headers=headers
+                )
+            except Exception as e:
+                pass
+                
+    return {"status": "success"}
+
 @router.post("/guilds/{guild_id}/polls/{poll_id}/cancel")
+
 async def cancel_poll(guild_id: str, poll_id: str, admin = Depends(get_current_guild_admin)):
     poll = await DropPoll.get(ObjectId(poll_id))
     if not poll or poll.guild_id != guild_id:

@@ -39,6 +39,7 @@ class MyBot(commands.Bot):
             print("Comandi sincronizzati globalmente (potrebbe richiedere fino a 1 ora)")
             
         self.add_view(CandidateButton())
+        self.add_view(LucentCandidateButton())
 
 bot = MyBot()
 
@@ -158,6 +159,83 @@ class CandidateButton(discord.ui.View):
         await self.process_candidate(interaction, "Build Secondaria")
 
 
+
+class LucentModal(discord.ui.Modal, title='Candidatura Lucent'):
+    amount = discord.ui.TextInput(
+        label='Ammontare richiesto',
+        style=discord.TextStyle.short,
+        placeholder='Es. 500',
+        required=True
+    )
+    reason = discord.ui.TextInput(
+        label='Nota / Motivazione',
+        style=discord.TextStyle.paragraph,
+        placeholder='Perché richiedi questi lucent?',
+        required=True,
+        max_length=300
+    )
+
+    def __init__(self, target_message_id: str, target_channel_id: str):
+        super().__init__()
+        self.target_message_id = target_message_id
+        self.target_channel_id = target_channel_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Trova sondaggio dal message id salvato
+            poll = await DropPoll.find_one(DropPoll.message_id == self.target_message_id)
+            if not poll:
+                poll = await DropPoll.find_one(DropPoll.channel_id == self.target_channel_id, DropPoll.status == "open").sort("-created_at")
+                
+            if not poll:
+                await interaction.response.send_message("Sondaggio non trovato o scaduto.", ephemeral=True)
+                return
+            
+            if poll.status != "open":
+                await interaction.response.send_message("Il sondaggio è già chiuso.", ephemeral=True)
+                return
+                
+            discord_id = str(interaction.user.id)
+            if discord_id in poll.candidates:
+                await interaction.response.send_message("Sei già candidato.", ephemeral=True)
+                return
+
+            db_user = await DropUser.find_one(DropUser.discord_id == discord_id)
+            if not db_user:
+                await interaction.response.send_message("Non sei registrato sul sito. Fai prima il login sulla dashboard.", ephemeral=True)
+                return
+
+            try:
+                amt = int(self.amount.value)
+            except ValueError:
+                await interaction.response.send_message("L'ammontare deve essere un numero intero.", ephemeral=True)
+                return
+
+            poll.candidates.append(discord_id)
+            if getattr(poll, "candidate_reasons", None) is None:
+                poll.candidate_reasons = {}
+            if getattr(poll, "candidate_amounts", None) is None:
+                poll.candidate_amounts = {}
+            poll.candidate_reasons[discord_id] = self.reason.value
+            poll.candidate_amounts[discord_id] = amt
+            await poll.save()
+            await interaction.response.send_message(f"Ti sei candidato con successo per {amt} Lucent!", ephemeral=True)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"Si è verificato un errore: {e}", ephemeral=True)
+
+class LucentCandidateButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='Candidati per Lucent', style=discord.ButtonStyle.green, custom_id='candidate_lucent_btn')
+    async def candidate_lucent(self, interaction: discord.Interaction, button: discord.ui.Button):
+        msg_id = str(interaction.message.id) if interaction.message else ""
+        chan_id = str(interaction.channel_id) if interaction.channel_id else ""
+        await interaction.response.send_modal(LucentModal(target_message_id=msg_id, target_channel_id=chan_id))
+
 # --- Commands ---
 
 @bot.tree.command(name="pinguin_drop_start", description="Avvia un sondaggio per l'assegnazione di un item")
@@ -261,6 +339,41 @@ async def drop_start(interaction: discord.Interaction, item: str):
 #     await interaction.response.send_message(embed=embed)
 
 # drop_close e drop_assign rimossi, gestiti via Web UI
+
+
+@bot.tree.command(name="pinguin_lucent_start", description="Avvia un sondaggio per l'assegnazione di Lucent")
+@app_commands.describe(amount="Ammontare totale di Lucent da assegnare")
+async def lucent_start(interaction: discord.Interaction, amount: int):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("Solo gli admin possono avviare un sondaggio Lucent.", ephemeral=True)
+        return
+
+    guild_id = str(interaction.guild_id)
+    
+    poll = DropPoll(
+        guild_id=guild_id,
+        item_id="lucent",
+        item_name="Lucent",
+        message_id="",
+        channel_id=str(interaction.channel_id),
+        poll_type="lucent",
+        amount=amount,
+        created_by=str(interaction.user.id)
+    )
+    await poll.save()
+
+    view = LucentCandidateButton()
+    
+    embed = discord.Embed(
+        title="💰 Assegnazione Lucent!",
+        description=f"Ammontare disponibile: **{amount} Lucent**\nClicca il pulsante qui sotto per inserire la quantità richiesta e la motivazione.",
+        color=discord.Color.gold()
+    )
+    
+    await interaction.response.send_message(embed=embed, view=view)
+    msg = await interaction.original_response()
+    poll.message_id = str(msg.id)
+    await poll.save()
 
 if __name__ == '__main__':
     bot.run(TOKEN)

@@ -67,8 +67,11 @@ class DropPoll(Document):
     item_id: str
     item_name: str
     status: str = "open" # open, closed
+    poll_type: str = "item" # item, lucent
+    amount: Optional[int] = None # For lucent polls
     candidates: List[str] = [] # Lista di Discord ID
-    candidate_reasons: Dict[str, str] = {} # Mappatura Discord ID -> Motivazione (Build Primaria, Litograph, Build Secondaria)
+    candidate_reasons: Dict[str, str] = {} # Mappatura Discord ID -> Motivazione (Build Primaria, Litograph, Build Secondaria, o nota per lucent)
+    candidate_amounts: Dict[str, int] = {} # Mappatura Discord ID -> Quantità richiesta (per lucent)
     created_at: datetime = datetime.utcnow()
     created_by: str # Discord ID admin
 
