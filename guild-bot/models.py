@@ -68,6 +68,7 @@ class DropPoll(Document):
     item_name: str
     status: str = "open" # open, closed
     candidates: List[str] = [] # Lista di Discord ID
+    candidate_reasons: Dict[str, str] = {} # Mappatura Discord ID -> Motivazione (Build Primaria, Litograph, Build Secondaria)
     created_at: datetime = datetime.utcnow()
     created_by: str # Discord ID admin
 

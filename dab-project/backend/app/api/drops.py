@@ -203,11 +203,13 @@ async def get_polls(guild_id: str, admin = Depends(get_current_guild_admin)):
     results = []
     for p in polls:
         c_info = []
+        candidate_reasons = getattr(p, "candidate_reasons", {})
         for c_id in p.candidates:
             user = await DropUser.find_one(DropUser.discord_id == c_id)
             c_info.append({
                 "discord_id": c_id,
-                "username": user.username if user else "Unknown"
+                "username": user.username if user else "Unknown",
+                "reason": candidate_reasons.get(c_id, "Sconosciuta")
             })
         p_dict = p.model_dump()
         p_dict["candidates_info"] = c_info

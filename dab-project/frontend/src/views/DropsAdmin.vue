@@ -520,9 +520,12 @@ onMounted(() => {
                   </p>
                   <ul class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-2">
                     <li v-for="c in poll.candidates_info" :key="c.discord_id" class="flex justify-between items-center text-sm bg-gray-900/50 p-1.5 rounded border border-gray-800">
-                      <span @click="openUserDetails(c.discord_id, c.username)" class="text-gray-300 truncate mr-2 cursor-pointer hover:text-cyber-cyan hover:underline transition-colors">{{ c.username }}</span>
+                      <div class="flex items-center">
+                        <span @click="openUserDetails(c.discord_id, c.username)" class="text-gray-300 truncate mr-2 cursor-pointer hover:text-cyber-cyan hover:underline transition-colors">{{ c.username }}</span>
+                        <span class="text-[10px] uppercase border border-gray-700 text-gray-400 px-1 rounded">{{ c.reason }}</span>
+                      </div>
                       <div class="flex gap-2">
-                        <button @click="assignPoll(poll.id, c.discord_id, 'manual')" class="text-green-400 hover:text-green-300 text-xs px-2 py-0.5 border border-green-400/30 rounded bg-green-900/20">{{ t('drops.wins') }}</button>
+                        <button @click="assignPoll(poll.id, c.discord_id, c.reason && c.reason !== 'Sconosciuta' ? c.reason : 'manual')" class="text-green-400 hover:text-green-300 text-xs px-2 py-0.5 border border-green-400/30 rounded bg-green-900/20">{{ t('drops.wins') }}</button>
                         <button @click="removeCandidate(poll.id, c.discord_id)" class="text-red-400 hover:text-red-300 text-xs px-2 py-0.5 border border-red-400/30 rounded bg-red-900/20">X</button>
                       </div>
                     </li>

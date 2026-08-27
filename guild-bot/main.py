@@ -83,8 +83,7 @@ class CandidateButton(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label='Candidati per il Drop', style=discord.ButtonStyle.green, custom_id='candidate_btn')
-    async def candidate(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def process_candidate(self, interaction: discord.Interaction, reason: str):
         try:
             # Trova sondaggio dal message id
             message_id = str(interaction.message.id)
@@ -112,35 +111,51 @@ class CandidateButton(discord.ui.View):
                 await interaction.response.send_message("Non sei registrato sul sito. Fai prima il login sulla dashboard.", ephemeral=True)
                 return
 
-            # Check if user has primary build in this guild
-            guild_id = str(interaction.guild_id)
-            build = await Build.find_one(Build.user_id == discord_id, Build.guild_id == guild_id, Build.status == "primary")
-            
-            if not build:
-                await interaction.response.send_message("Non hai una build Primaria approvata per questa gilda.", ephemeral=True)
-                return
+            # Per "Build Primaria" controlliamo rigorosamente se l'ha salvata
+            if reason == "Build Primaria":
+                guild_id = str(interaction.guild_id)
+                build = await Build.find_one(Build.user_id == discord_id, Build.guild_id == guild_id, Build.status == "primary")
+                
+                if not build:
+                    await interaction.response.send_message("Non hai una build Primaria approvata per questa gilda.", ephemeral=True)
+                    return
 
-            # Check if item is in the build
-            has_item = False
-            if build.slots:
-                slots_dict = build.slots.model_dump()
-                for slot_key, item_data in slots_dict.items():
-                    if item_data and item_data.get("id") == poll.item_id:
-                        has_item = True
-                        break
+                # Check if item is in the build
+                has_item = False
+                if build.slots:
+                    slots_dict = build.slots.model_dump()
+                    for slot_key, item_data in slots_dict.items():
+                        if item_data and item_data.get("id") == poll.item_id:
+                            has_item = True
+                            break
 
-            if not has_item:
-                await interaction.response.send_message(f"Non puoi candidarti per **{poll.item_name}** perché non è presente nella tua Build Primaria.", ephemeral=True)
-                return
+                if not has_item:
+                    await interaction.response.send_message(f"Non puoi candidarti per **{poll.item_name}** perché non è presente nella tua Build Primaria.", ephemeral=True)
+                    return
 
             poll.candidates.append(discord_id)
+            if not getattr(poll, "candidate_reasons", None):
+                poll.candidate_reasons = {}
+            poll.candidate_reasons[discord_id] = reason
             await poll.save()
-            await interaction.response.send_message("Ti sei candidato con successo!", ephemeral=True)
+            await interaction.response.send_message(f"Ti sei candidato con successo per: **{reason}**!", ephemeral=True)
         except Exception as e:
             import traceback
             traceback.print_exc()
             if not interaction.response.is_done():
                 await interaction.response.send_message(f"Si è verificato un errore: {e}", ephemeral=True)
+
+    @discord.ui.button(label='Build Primaria', style=discord.ButtonStyle.green, custom_id='candidate_primary_btn')
+    async def candidate_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_candidate(interaction, "Build Primaria")
+
+    @discord.ui.button(label='Litograph', style=discord.ButtonStyle.blurple, custom_id='candidate_litograph_btn')
+    async def candidate_litograph(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_candidate(interaction, "Litograph")
+
+    @discord.ui.button(label='Build Secondaria', style=discord.ButtonStyle.gray, custom_id='candidate_secondary_btn')
+    async def candidate_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_candidate(interaction, "Build Secondaria")
 
 
 # --- Commands ---
@@ -198,7 +213,7 @@ async def drop_start(interaction: discord.Interaction, item: str):
     
     embed = discord.Embed(
         title="🎉 Nuovo Drop Assegnabile!",
-        description=f"Item: **{item_data['name']}**\nClicca sul bottone per candidarti se hai questo pezzo nella tua build *Primary*.",
+        description=f"Item: **{item_data['name']}**\nScegli la motivazione per cui ti candidi tramite i pulsanti qui sotto.",
         color=discord.Color.gold()
     )
     if icon_url:
