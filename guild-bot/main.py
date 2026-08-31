@@ -247,7 +247,12 @@ FLAGS_LANGUAGES = {
     "🇺🇸": ("en", "Inglese"),
     "🇫🇷": ("fr", "Francese"),
     "🇪🇸": ("es", "Spagnolo"),
-    "🇬🇷": ("el", "Greco")
+    "🇬🇷": ("el", "Greco"),
+    "🇸🇪": ("sv", "Svedese"),
+    "🇸🇮": ("sl", "Sloveno"),
+    "🇩🇪": ("de", "Tedesco"),
+    "🇷🇺": ("ru", "Russo"),
+    "🇺🇦": ("uk", "Ucraino")
 }
 
 @bot.event
