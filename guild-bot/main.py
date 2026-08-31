@@ -11,6 +11,7 @@ from models import DropUser, Build, DropHistory, DropPoll
 from datetime import datetime
 import json
 import urllib.parse
+from deep_translator import GoogleTranslator
 
 load_dotenv()
 
@@ -22,7 +23,9 @@ TEST_GUILD_ID = os.getenv('GUILD_ID', '')
 
 class MyBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix='!', intents=discord.Intents.default())
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(command_prefix='!', intents=intents)
 
     async def setup_hook(self):
         # Connessione DB
@@ -237,6 +240,77 @@ class LucentCandidateButton(discord.ui.View):
         await interaction.response.send_modal(LucentModal(target_message_id=msg_id, target_channel_id=chan_id))
 
 # --- Commands ---
+
+FLAGS_LANGUAGES = {
+    "🇮🇹": ("it", "Italiano"),
+    "🇬🇧": ("en", "Inglese"),
+    "🇺🇸": ("en", "Inglese"),
+    "🇫🇷": ("fr", "Francese"),
+    "🇪🇸": ("es", "Spagnolo"),
+    "🇬🇷": ("el", "Greco")
+}
+
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    # Ignora le reazioni del bot stesso
+    if payload.user_id == bot.user.id:
+        return
+
+    emoji_name = str(payload.emoji)
+    if emoji_name not in FLAGS_LANGUAGES:
+        return
+
+    lang_code, lang_name = FLAGS_LANGUAGES[emoji_name]
+    print(f"[Traduzioni] Ricevuta richiesta di traduzione in {lang_name} sul server {payload.guild_id}")
+    
+    channel = bot.get_channel(payload.channel_id)
+    if not channel:
+        try:
+            channel = await bot.fetch_channel(payload.channel_id)
+        except Exception as e:
+            print(f"[Traduzioni] Impossibile recuperare il canale (Permessi?): {e}")
+            return
+
+    try:
+        message = await channel.fetch_message(payload.message_id)
+    except Exception as e:
+        print(f"[Traduzioni] Impossibile leggere il messaggio nel server {payload.guild_id} (Manca 'Read Message History'?): {e}")
+        return
+
+    if not message.content:
+        print(f"[Traduzioni] Il messaggio è vuoto o non leggibile nel server {payload.guild_id}.")
+        return
+
+    # Controlla se il bot ha già reagito con questa bandiera (evita spam)
+    for reaction in message.reactions:
+        if str(reaction.emoji) == emoji_name and reaction.me:
+            return
+
+    # Aggiunge la reazione per indicare che ha preso in carico la traduzione (e bloccare duplicati)
+    try:
+        await message.add_reaction(payload.emoji)
+    except:
+        pass
+
+    try:
+        loop = asyncio.get_event_loop()
+        translator = GoogleTranslator(source='auto', target=lang_code)
+        translated = await loop.run_in_executor(None, translator.translate, message.content)
+        
+        embed = discord.Embed(
+            description=translated,
+            color=discord.Color.blue()
+        )
+        
+        author_icon = message.author.display_avatar.url if message.author.display_avatar else None
+        embed.set_author(name=f"Messaggio originale di {message.author.display_name}", icon_url=author_icon)
+        
+        requester_name = payload.member.display_name if payload.member else "Utente"
+        embed.set_footer(text=f"Traduzione in {lang_name} richiesta da {requester_name}")
+        
+        await message.reply(embed=embed, mention_author=False)
+    except Exception as e:
+        print(f"Errore traduzione: {e}")
 
 @bot.tree.command(name="pinguin_drop_start", description="Avvia un sondaggio per l'assegnazione di un item")
 @app_commands.autocomplete(item=item_autocomplete)

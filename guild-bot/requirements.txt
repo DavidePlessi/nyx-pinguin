@@ -1,5 +1,6 @@
 discord.py
 motor<3.6.0
-beanie
+beanie<2.0.0
 python-dotenv
 httpx
+deep-translator
