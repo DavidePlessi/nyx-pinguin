@@ -266,7 +266,7 @@ const proportionalDistribution = (pollId: string) => {
   
   const totalAvailable = poll.amount || 0
   const candidates = poll.candidates_info || []
-  const totalRequested = candidates.reduce((sum, c) => sum + (c.amount || 0), 0)
+  const totalRequested = candidates.reduce((sum: any, c: { amount: any }) => sum + (c.amount || 0), 0)
   
   const newAssignments: Record<string, number> = {}
   
