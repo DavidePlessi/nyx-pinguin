@@ -316,6 +316,18 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         await message.reply(embed=embed, mention_author=False)
     except Exception as e:
         print(f"Errore traduzione: {e}")
+        # Rimuove la reazione del bot per permettere un nuovo tentativo
+        try:
+            await message.remove_reaction(payload.emoji, bot.user)
+        except Exception as remove_error:
+            print(f"[Traduzioni] Impossibile rimuovere la reazione: {remove_error}")
+            
+        # Avvisa l'utente del problema
+        try:
+            requester_mention = payload.member.mention if payload.member else "Utente"
+            await channel.send(f"{requester_mention}, ⚠️ Impossibile tradurre il messaggio in {lang_name} al momento. Riprova più tardi.", delete_after=15)
+        except Exception as send_error:
+            print(f"[Traduzioni] Impossibile inviare messaggio di errore: {send_error}")
 
 @bot.tree.command(name="pinguin_drop_start", description="Avvia un sondaggio per l'assegnazione di un item")
 @app_commands.autocomplete(item=item_autocomplete)
