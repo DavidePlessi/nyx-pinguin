@@ -11,7 +11,7 @@ from models import DropUser, Build, DropHistory, DropPoll
 from datetime import datetime
 import json
 import urllib.parse
-from deep_translator import GoogleTranslator
+
 
 load_dotenv()
 
@@ -298,9 +298,19 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         pass
 
     try:
-        loop = asyncio.get_event_loop()
-        translator = GoogleTranslator(source='auto', target=lang_code)
-        translated = await loop.run_in_executor(None, translator.translate, message.content)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://libretranslate:5000/translate",
+                json={
+                    "q": message.content,
+                    "source": "auto",
+                    "target": lang_code,
+                    "format": "text"
+                },
+                timeout=15.0
+            )
+            response.raise_for_status()
+            translated = response.json().get("translatedText", "")
         
         embed = discord.Embed(
             description=translated,
