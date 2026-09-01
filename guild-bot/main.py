@@ -262,19 +262,14 @@ class TranslateView(discord.ui.View):
         await interaction.response.defer(ephemeral=(self.mode == "ephemeral"))
         
         try:
+            import urllib.parse
+            url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={lang_code}&dt=t&q={urllib.parse.quote(self.message.content)}"
             async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://libretranslate:5000/translate",
-                    json={
-                        "q": self.message.content,
-                        "source": "auto",
-                        "target": lang_code,
-                        "format": "text"
-                    },
-                    timeout=15.0
-                )
+                response = await client.get(url, timeout=15.0)
                 response.raise_for_status()
-                translated = response.json().get("translatedText", "")
+                # Google Translate returns a complex JSON array. The translated text is the first element of each chunk.
+                data = response.json()
+                translated = "".join([chunk[0] for chunk in data[0] if chunk[0]])
             
             embed = discord.Embed(
                 description=translated,
@@ -420,19 +415,13 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         pass
 
     try:
+        import urllib.parse
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={lang_code}&dt=t&q={urllib.parse.quote(message.content)}"
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "http://libretranslate:5000/translate",
-                json={
-                    "q": message.content,
-                    "source": "auto",
-                    "target": lang_code,
-                    "format": "text"
-                },
-                timeout=15.0
-            )
+            response = await client.get(url, timeout=15.0)
             response.raise_for_status()
-            translated = response.json().get("translatedText", "")
+            data = response.json()
+            translated = "".join([chunk[0] for chunk in data[0] if chunk[0]])
         
         embed = discord.Embed(
             description=translated,
