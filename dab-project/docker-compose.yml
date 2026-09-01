@@ -36,12 +36,3 @@ services:
     depends_on:
       - api
       - libretranslate
-
-  libretranslate:
-    image: libretranslate/libretranslate:latest
-    container_name: pinguin_libretranslate
-    restart: always
-    ports:
-      - "5000:5000"
-    environment:
-      - LT_LOAD_ONLY=en,it,fr,es,de,sv,sl,el,ru,uk
