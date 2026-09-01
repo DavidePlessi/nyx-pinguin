@@ -243,6 +243,33 @@ class LucentCandidateButton(discord.ui.View):
 
 # --- Translate Context Menu & Reactions ---
 
+async def translate_with_deepl(text: str, target_lang: str) -> str:
+    deepl_key = os.environ.get("DEEPL_AUTH_KEY")
+    if not deepl_key:
+        raise ValueError("Chiave API DeepL mancante (DEEPL_AUTH_KEY).")
+    
+    target = target_lang.upper()
+    if target == "EN":
+        target = "EN-US"
+    elif target == "PT":
+        target = "PT-BR"
+        
+    url = "https://api-free.deepl.com/v2/translate"
+    headers = {
+        "Authorization": f"DeepL-Auth-Key {deepl_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "text": [text],
+        "target_lang": target
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=payload, timeout=15.0)
+        response.raise_for_status()
+        data = response.json()
+        return data["translations"][0]["text"]
+
 class TranslateView(discord.ui.View):
     def __init__(self, message: discord.Message, options: list[discord.SelectOption], mode: str):
         super().__init__(timeout=120)
@@ -262,32 +289,7 @@ class TranslateView(discord.ui.View):
         await interaction.response.defer(ephemeral=(self.mode == "ephemeral"))
         
         try:
-            import urllib.parse
-            translated = ""
-            # Fallback robusto: proviamo Google con User-Agent
-            try:
-                url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={lang_code}&dt=t&q={urllib.parse.quote(self.message.content)}"
-                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(url, headers=headers, timeout=5.0)
-                    response.raise_for_status()
-                    data = response.json()
-                    translated = "".join([chunk[0] for chunk in data[0] if chunk[0]])
-            except Exception as e:
-                print(f"[Traduzioni] Google Translate fallito: {e}. Fallback su LibreTranslate...")
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(
-                        "http://libretranslate:5000/translate",
-                        json={
-                            "q": self.message.content,
-                            "source": "auto",
-                            "target": lang_code,
-                            "format": "text"
-                        },
-                        timeout=15.0
-                    )
-                    response.raise_for_status()
-                    translated = response.json().get("translatedText", "")
+            translated = await translate_with_deepl(self.message.content, lang_code)
             
             embed = discord.Embed(
                 description=translated,
@@ -433,31 +435,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         pass
 
     try:
-        import urllib.parse
-        translated = ""
-        try:
-            url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={lang_code}&dt=t&q={urllib.parse.quote(message.content)}"
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=headers, timeout=5.0)
-                response.raise_for_status()
-                data = response.json()
-                translated = "".join([chunk[0] for chunk in data[0] if chunk[0]])
-        except Exception as e:
-            print(f"[Traduzioni] Google Translate fallito nella reazione: {e}. Fallback su LibreTranslate...")
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://libretranslate:5000/translate",
-                    json={
-                        "q": message.content,
-                        "source": "auto",
-                        "target": lang_code,
-                        "format": "text"
-                    },
-                    timeout=15.0
-                )
-                response.raise_for_status()
-                translated = response.json().get("translatedText", "")
+        translated = await translate_with_deepl(message.content, lang_code)
         
         embed = discord.Embed(
             description=translated,
