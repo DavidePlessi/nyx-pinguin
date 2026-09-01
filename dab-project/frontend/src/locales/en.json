@@ -62,7 +62,9 @@
     "noSyncedGuilds": "You are not part of any guild synced with the system.",
     "guildIdLabel2": "ID:",
     "buildStatus": "Build Status",
-    "authError": "Auth error"
+    "authError": "Auth error",
+    "translationAdminTitle": "Translations",
+    "translationAdminDesc": "Manage languages and bot translation settings."
   },
   "modal": {
     "systemAlert": "SYSTEM ALERT",
@@ -275,5 +277,22 @@
     "noBuildFound": "No primary build found for this user.",
     "noBuildsFound": "No builds found with these filters.",
     "refreshData": "Refresh Data"
+  },
+  "translationAdmin": {
+    "title": "Translation Admin",
+    "subtitle": "Manage bot translation settings for your server",
+    "loading": "Loading data...",
+    "noPermissions": "You do not have administration permissions on any server.",
+    "selectServer": "Select Server",
+    "replyMode": "Response Mode",
+    "modeChannel": "In Channel",
+    "modeEphemeral": "Ephemeral Message",
+    "modeDesc": "If you choose 'Ephemeral Message', translations will only be visible to the requester. The translation can be performed multiple times.",
+    "availableLangs": "Available Languages",
+    "availableLangsDesc": "Select the languages in which the bot can translate messages.",
+    "noLangsInDb": "No languages configured in the database. (Contact global administrator).",
+    "saveSuccess": "Settings successfully saved!",
+    "saveError": "Error saving settings.",
+    "saveBtn": "Save Settings"
   }
 }

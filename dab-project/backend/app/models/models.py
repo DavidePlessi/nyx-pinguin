@@ -11,9 +11,20 @@ class GuildConfig(Document):
     dest_channels: List[str] = []
     external_dest_channels: List[str] = []
     is_active: bool = False
+    translation_channel: bool = True
+    translation_ephemeral: bool = False
+    translation_languages: List[str] = ["it", "en"]
 
     class Settings:
         name = "guild_configs"
+
+class AvailableLanguage(Document):
+    code: str
+    name: str
+    emoji: str
+    
+    class Settings:
+        name = "available_languages"
 
 class AdminUser(Document):
     discord_id: str

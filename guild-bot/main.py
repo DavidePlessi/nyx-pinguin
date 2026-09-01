@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
-from models import DropUser, Build, DropHistory, DropPoll
+from models import DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage
 from datetime import datetime
 import json
 import urllib.parse
@@ -30,7 +30,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         # Connessione DB
         client = AsyncIOMotorClient(MONGO_URI)
-        await init_beanie(database=client[MONGO_DB_NAME], document_models=[DropUser, Build, DropHistory, DropPoll])
+        await init_beanie(database=client[MONGO_DB_NAME], document_models=[DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage])
         # Sync slash commands
         if TEST_GUILD_ID:
             guild = discord.Object(id=int(TEST_GUILD_ID))
@@ -241,57 +241,179 @@ class LucentCandidateButton(discord.ui.View):
 
 # --- Commands ---
 
-FLAGS_LANGUAGES = {
-    "🇮🇹": ("it", "Italiano"),
-    "🇬🇧": ("en", "Inglese"),
-    "🇺🇸": ("en", "Inglese"),
-    "🇫🇷": ("fr", "Francese"),
-    "🇪🇸": ("es", "Spagnolo"),
-    "🇬🇷": ("el", "Greco"),
-    "🇸🇪": ("sv", "Svedese"),
-    "🇸🇮": ("sl", "Sloveno"),
-    "🇩🇪": ("de", "Tedesco"),
-    "🇷🇺": ("ru", "Russo"),
-    "🇺🇦": ("uk", "Ucraino")
-}
+# --- Translate Context Menu & Reactions ---
+
+class TranslateView(discord.ui.View):
+    def __init__(self, message: discord.Message, options: list[discord.SelectOption], mode: str):
+        super().__init__(timeout=120)
+        self.message = message
+        self.mode = mode
+        
+        self.select = discord.ui.Select(placeholder="Scegli la lingua...", options=options[:25])
+        self.select.callback = self.select_callback
+        self.add_item(self.select)
+        
+    async def select_callback(self, interaction: discord.Interaction):
+        # The value is stored as 'langCode_emojiName' to prevent Discord duplicate value errors
+        lang_val = self.select.values[0]
+        lang_code = lang_val.split('_')[0]
+        lang_name = next(opt.label for opt in self.select.options if opt.value == lang_val)
+        
+        await interaction.response.defer(ephemeral=(self.mode == "ephemeral"))
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://libretranslate:5000/translate",
+                    json={
+                        "q": self.message.content,
+                        "source": "auto",
+                        "target": lang_code,
+                        "format": "text"
+                    },
+                    timeout=15.0
+                )
+                response.raise_for_status()
+                translated = response.json().get("translatedText", "")
+            
+            embed = discord.Embed(
+                description=translated,
+                color=discord.Color.blue()
+            )
+            
+            author_icon = self.message.author.display_avatar.url if self.message.author.display_avatar else None
+            embed.set_author(name=f"Messaggio originale di {self.message.author.display_name}", icon_url=author_icon)
+            
+            requester_name = interaction.user.display_name
+            embed.set_footer(text=f"Traduzione in {lang_name} richiesta da {requester_name}")
+            
+            if self.mode == "ephemeral":
+                await interaction.followup.send(embed=embed, ephemeral=True)
+            else:
+                # Find the emoji for the selected language
+                selected_emoji = next((opt.emoji.name for opt in self.select.options if opt.value == lang_val and opt.emoji), "✅")
+                
+                # To prevent spam in channel mode, check if we already translated it
+                if not any(reaction.me and str(reaction.emoji) == selected_emoji for reaction in self.message.reactions):
+                    try:
+                        await self.message.add_reaction(selected_emoji)
+                    except:
+                        pass
+                    await self.message.reply(embed=embed, mention_author=False)
+                    await interaction.followup.send("Messaggio tradotto nel canale.", ephemeral=True)
+                else:
+                    await interaction.followup.send("Il messaggio è già stato tradotto in questa lingua nel canale.", ephemeral=True)
+                
+        except Exception as e:
+            print(f"Errore traduzione: {e}")
+            await interaction.followup.send(f"⚠️ Impossibile tradurre il messaggio al momento. Riprova più tardi.", ephemeral=True)
+
+@bot.tree.context_menu(name="Traduci")
+async def translate_message_context(interaction: discord.Interaction, message: discord.Message):
+    if not message.content:
+        await interaction.response.send_message("Il messaggio è vuoto.", ephemeral=True)
+        return
+
+    guild_id = str(interaction.guild_id)
+    config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+    
+    if not config or not config.is_active:
+        await interaction.response.send_message("Configurazione bot non attiva in questo server.", ephemeral=True)
+        return
+    
+    if not config.translation_ephemeral:
+        await interaction.response.send_message("La traduzione tramite menù contestuale (effimera) è disabilitata in questo server. Usa le reazioni con le bandiere se la traduzione nel canale è attiva.", ephemeral=True)
+        return
+
+    enabled_langs_codes = config.translation_languages
+    if not enabled_langs_codes:
+        await interaction.response.send_message("Nessuna lingua abilitata per la traduzione in questo server.", ephemeral=True)
+        return
+        
+    all_langs = await AvailableLanguage.find_all().to_list()
+    if not all_langs:
+        # Fallback if DB empty
+        all_langs = [AvailableLanguage(code="en", name="Inglese", emoji="🇬🇧"), AvailableLanguage(code="it", name="Italiano", emoji="🇮🇹")]
+    
+    options = []
+    for lang in all_langs:
+        if lang.code in enabled_langs_codes:
+            unique_val = f"{lang.code}_{lang.emoji}"
+            options.append(discord.SelectOption(label=lang.name, value=unique_val, emoji=lang.emoji))
+            
+    if not options:
+        await interaction.response.send_message("Nessuna lingua valida abilitata.", ephemeral=True)
+        return
+
+    view = TranslateView(message, options, "ephemeral")
+    await interaction.response.send_message("Seleziona la lingua per la traduzione:", view=view, ephemeral=True)
 
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
-    # Ignora le reazioni del bot stesso
     if payload.user_id == bot.user.id:
         return
 
     emoji_name = str(payload.emoji)
-    if emoji_name not in FLAGS_LANGUAGES:
+    
+    config = await GuildConfig.find_one(GuildConfig.guild_id == str(payload.guild_id))
+    if not config or not config.is_active:
         return
+    
+    # Check if the reaction emoji is an enabled language
+    all_langs = await AvailableLanguage.find_all().to_list()
+    target_lang = None
+    for lang in all_langs:
+        if lang.emoji == emoji_name and lang.code in config.translation_languages:
+            target_lang = lang
+            break
+            
+    if not target_lang:
+        return
+        
+    lang_code = target_lang.code
+    lang_name = target_lang.name
 
-    lang_code, lang_name = FLAGS_LANGUAGES[emoji_name]
-    print(f"[Traduzioni] Ricevuta richiesta di traduzione in {lang_name} sul server {payload.guild_id}")
+    print(f"[Traduzioni] Ricevuta richiesta di traduzione (Reazione) in {lang_name} sul server {payload.guild_id}")
     
     channel = bot.get_channel(payload.channel_id)
     if not channel:
         try:
             channel = await bot.fetch_channel(payload.channel_id)
         except Exception as e:
-            print(f"[Traduzioni] Impossibile recuperare il canale (Permessi?): {e}")
+            print(f"[Traduzioni] Impossibile recuperare il canale: {e}")
             return
 
     try:
         message = await channel.fetch_message(payload.message_id)
-    except Exception as e:
-        print(f"[Traduzioni] Impossibile leggere il messaggio nel server {payload.guild_id} (Manca 'Read Message History'?): {e}")
+    except Exception:
         return
 
     if not message.content:
-        print(f"[Traduzioni] Il messaggio è vuoto o non leggibile nel server {payload.guild_id}.")
         return
 
-    # Controlla se il bot ha già reagito con questa bandiera (evita spam)
+    if not config.translation_channel:
+        # Avvisa l'utente se prova a usare la reazione ma la modalità è disabilitata
+        user = bot.get_user(payload.user_id)
+        if user:
+            try:
+                await user.send(f"⚠️ La traduzione nel canale tramite reazioni è disabilitata nel server. Usa il menù contestuale (Tasto destro sul messaggio -> App -> Traduci) se la traduzione effimera è attiva.")
+            except:
+                pass
+        
+        # Rimuove la reazione
+        channel = bot.get_channel(payload.channel_id)
+        if channel:
+            try:
+                message = await channel.fetch_message(payload.message_id)
+                await message.remove_reaction(payload.emoji, user)
+            except:
+                pass
+        return
+
     for reaction in message.reactions:
         if str(reaction.emoji) == emoji_name and reaction.me:
             return
 
-    # Aggiunge la reazione per indicare che ha preso in carico la traduzione (e bloccare duplicati)
     try:
         await message.add_reaction(payload.emoji)
     except:
@@ -316,28 +438,23 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             description=translated,
             color=discord.Color.blue()
         )
-        
         author_icon = message.author.display_avatar.url if message.author.display_avatar else None
         embed.set_author(name=f"Messaggio originale di {message.author.display_name}", icon_url=author_icon)
-        
         requester_name = payload.member.display_name if payload.member else "Utente"
         embed.set_footer(text=f"Traduzione in {lang_name} richiesta da {requester_name}")
         
         await message.reply(embed=embed, mention_author=False)
     except Exception as e:
         print(f"Errore traduzione: {e}")
-        # Rimuove la reazione del bot per permettere un nuovo tentativo
         try:
             await message.remove_reaction(payload.emoji, bot.user)
-        except Exception as remove_error:
-            print(f"[Traduzioni] Impossibile rimuovere la reazione: {remove_error}")
-            
-        # Avvisa l'utente del problema
+        except:
+            pass
         try:
             requester_mention = payload.member.mention if payload.member else "Utente"
             await channel.send(f"{requester_mention}, ⚠️ Impossibile tradurre il messaggio in {lang_name} al momento. Riprova più tardi.", delete_after=15)
-        except Exception as send_error:
-            print(f"[Traduzioni] Impossibile inviare messaggio di errore: {send_error}")
+        except:
+            pass
 
 @bot.tree.command(name="pinguin_drop_start", description="Avvia un sondaggio per l'assegnazione di un item")
 @app_commands.autocomplete(item=item_autocomplete)

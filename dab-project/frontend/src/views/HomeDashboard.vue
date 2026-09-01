@@ -142,6 +142,15 @@ onMounted(() => {
         <h3 class="font-rajdhani text-xl font-bold text-gray-200 uppercase tracking-wide">{{ t('dashboard.adminPanelTitle') }}</h3>
         <p class="text-sm text-gray-500 font-mono mt-2">{{ t('dashboard.adminPanelDesc') }}</p>
       </router-link>
+      
+      <!-- Translation Admin Card -->
+      <router-link v-if="userRole === 'admin' || userRole === 'guild_admin'" to="/translation-admin" class="glass-panel p-6 rounded-xl hover:border-green-500 hover:shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all cursor-pointer group flex flex-col items-center text-center">
+        <div class="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+        </div>
+        <h3 class="font-rajdhani text-xl font-bold text-gray-200 uppercase tracking-wide">{{ t('dashboard.translationAdminTitle') }}</h3>
+        <p class="text-sm text-gray-500 font-mono mt-2">{{ t('dashboard.translationAdminDesc') }}</p>
+      </router-link>
     </div>
 
     <!-- My Guilds Section -->

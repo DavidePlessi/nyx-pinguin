@@ -62,7 +62,9 @@
     "noSyncedGuilds": "No perteneces a ningún gremio sincronizado con el sistema.",
     "guildIdLabel2": "ID:",
     "buildStatus": "Estado Build",
-    "authError": "Error de auth"
+    "authError": "Error de auth",
+    "translationAdminTitle": "Traducciones",
+    "translationAdminDesc": "Gestiona idiomas y ajustes de traducción del bot."
   },
   "modal": {
     "systemAlert": "ALERTA DEL SISTEMA",
@@ -275,5 +277,22 @@
     "noBuildFound": "No se encontró build primaria para este usuario.",
     "noBuildsFound": "No se encontraron builds con estos filtros.",
     "refreshData": "Actualizar Datos"
+  },
+  "translationAdmin": {
+    "title": "Admin de Traducción",
+    "subtitle": "Gestiona la configuración de traducción del bot para tu servidor",
+    "loading": "Cargando datos...",
+    "noPermissions": "No tienes permisos de administración en ningún servidor.",
+    "selectServer": "Seleccionar Servidor",
+    "replyMode": "Modo de Respuesta",
+    "modeChannel": "En el Canal",
+    "modeEphemeral": "Mensaje Efímero",
+    "modeDesc": "Si eliges 'Mensaje Efímero', las traducciones solo serán visibles para quien las solicita.",
+    "availableLangs": "Idiomas Disponibles",
+    "availableLangsDesc": "Selecciona los idiomas en los que el bot puede traducir.",
+    "noLangsInDb": "No hay idiomas configurados. (Contacta al administrador).",
+    "saveSuccess": "¡Ajustes guardados!",
+    "saveError": "Error al guardar.",
+    "saveBtn": "Guardar Ajustes"
   }
 }

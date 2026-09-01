@@ -52,6 +52,12 @@ const router = createRouter({
       name: 'DropsAdmin',
       component: () => import('../views/DropsAdmin.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/translation-admin',
+      name: 'TranslationAdmin',
+      component: () => import('../views/TranslationAdmin.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

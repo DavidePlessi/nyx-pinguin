@@ -14,6 +14,30 @@ class DropUser(Document):
     class Settings:
         name = "drop_users"
 
+class GuildConfig(Document):
+    guild_id: str
+    name: str = "Nuova Gilda"
+    source_channel_id: Optional[str] = None
+    source_role_id: Optional[str] = None
+    member_role_id: Optional[str] = None
+    dest_channels: List[str] = []
+    external_dest_channels: List[str] = []
+    is_active: bool = False
+    translation_channel: bool = True
+    translation_ephemeral: bool = False
+    translation_languages: List[str] = ["it", "en"]
+
+    class Settings:
+        name = "guild_configs"
+
+class AvailableLanguage(Document):
+    code: str
+    name: str
+    emoji: str
+    
+    class Settings:
+        name = "available_languages"
+
 class BuildSlotItem(BaseModel):
     id: str
     name: str

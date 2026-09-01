@@ -18,7 +18,7 @@ from app.api.drops import router as drops_router
 api_router.include_router(drops_router, prefix="/drops", tags=["drops"])
 
 from app.api.oauth import get_current_admin, get_current_guild_admin
-from app.models.models import AdminUser, GuildConfig, BotLog
+from app.models.models import AdminUser, GuildConfig, BotLog, AvailableLanguage
 from app.core.config import settings
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
@@ -36,12 +36,15 @@ class ConfigUpdateSchema(BaseModel):
     dest_channels: List[str]
     external_dest_channels: List[str] = []
     is_active: bool
+    translation_channel: bool = True
+    translation_ephemeral: bool = False
+    translation_languages: List[str] = []
 
 @api_router.get("/config/{guild_id}")
 async def get_config(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
-        return {"guild_id": guild_id, "is_active": False, "dest_channels": [], "external_dest_channels": []}
+        return {"guild_id": guild_id, "is_active": False, "dest_channels": [], "external_dest_channels": [], "translation_channel": True, "translation_ephemeral": False, "translation_languages": []}
     return config
 
 @api_router.post("/config")
@@ -55,8 +58,44 @@ async def save_config(data: ConfigUpdateSchema, admin: AdminUser = Depends(get_c
         config.dest_channels = data.dest_channels
         config.external_dest_channels = data.external_dest_channels
         config.is_active = data.is_active
+        config.translation_channel = data.translation_channel
+        config.translation_ephemeral = data.translation_ephemeral
+        config.translation_languages = data.translation_languages
     await config.save()
     return {"status": "success", "config": config}
+
+@api_router.get("/languages")
+async def get_languages():
+    langs = await AvailableLanguage.find_all().to_list()
+    return langs
+
+class LanguageSchema(BaseModel):
+    code: str
+    name: str
+    emoji: str
+
+@api_router.post("/languages")
+async def add_language(data: LanguageSchema, admin: AdminUser = Depends(get_current_admin)):
+    if admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo gli admin globali possono aggiungere lingue.")
+    lang = await AvailableLanguage.find_one(AvailableLanguage.code == data.code)
+    if not lang:
+        lang = AvailableLanguage(**data.dict())
+        await lang.save()
+    else:
+        lang.name = data.name
+        lang.emoji = data.emoji
+        await lang.save()
+    return lang
+
+@api_router.delete("/languages/{code}")
+async def delete_language(code: str, admin: AdminUser = Depends(get_current_admin)):
+    if admin.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo gli admin globali possono rimuovere lingue.")
+    lang = await AvailableLanguage.find_one(AvailableLanguage.code == code)
+    if lang:
+        await lang.delete()
+    return {"status": "success"}
 
 @api_router.get("/discord/guilds/{guild_id}/channels")
 async def get_guild_channels(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
