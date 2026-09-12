@@ -237,12 +237,25 @@ const forceSync = async () => {
 const triggerLogMessage = async () => {
   if (!adminGuildId.value) return
   
-  const confirmed = await showConfirm("Sei sicuro di voler inviare il messaggio di log attività su Discord ora?", "CONFERMA")
+  let targetW = targetWeekId.value
+  if (!targetW) {
+     const targetDay = dropConfig.value.weekly_activity_day !== undefined ? dropConfig.value.weekly_activity_day : 3
+     let targetDate = new Date()
+     let currentDow = targetDate.getDay()
+     let pyDow = currentDow === 0 ? 6 : currentDow - 1
+     let daysUntilTarget = (targetDay - pyDow) % 7
+     if (daysUntilTarget < 0) daysUntilTarget += 7
+     const weekEnd = new Date(targetDate)
+     weekEnd.setDate(targetDate.getDate() + daysUntilTarget)
+     targetW = getCurrentIsoWeek(weekEnd)
+  }
+  
+  const confirmed = await showConfirm(`Sei sicuro di voler inviare il messaggio di log attività per la settimana ${targetW} ora?`, "CONFERMA")
   if (!confirmed) return
   
   syncing.value = true
   try {
-    const res = await fetch(`${BACKEND_URL}/api/activity/trigger_log_message/${adminGuildId.value}`, {
+    const res = await fetch(`${BACKEND_URL}/api/activity/trigger_log_message/${adminGuildId.value}?week_id=${targetW}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${sessionToken.value}` }
     })

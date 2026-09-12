@@ -208,7 +208,7 @@ from app.core.config import settings
 from app.models.models import BotLog
 
 @router.post("/trigger_log_message/{guild_id}")
-async def trigger_log_message(guild_id: str, admin = Depends(get_current_guild_admin)):
+async def trigger_log_message(guild_id: str, week_id: Optional[str] = None, admin = Depends(get_current_guild_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config or not getattr(config, "weekly_activity_enabled", False):
         raise HTTPException(status_code=400, detail="Weekly activity tracking is not enabled for this server.")
@@ -217,36 +217,51 @@ async def trigger_log_message(guild_id: str, admin = Depends(get_current_guild_a
     if not channel_id:
         raise HTTPException(status_code=400, detail="Weekly activity channel ID not configured.")
         
-    now = datetime.utcnow()
-    year, week, _ = now.isocalendar()
-    week_id = f"{year}-W{week:02d}"
+    target_day = getattr(config, "weekly_activity_day", 3)
+    
+    if not week_id:
+        now = datetime.utcnow()
+        days_until_target = (target_day - now.weekday()) % 7
+        target_date = now + timedelta(days=days_until_target)
+        year, week, _ = target_date.isocalendar()
+        week_id = f"{year}-W{week:02d}"
+    else:
+        # compute target date from week_id string
+        y_str, w_str = week_id.split("-W")
+        y, w = int(y_str), int(w_str)
+        # Monday of the ISO week
+        iso_mon = datetime.strptime(f'{y} {w} 1', '%G %V %u')
+        target_date = iso_mon + timedelta(days=target_day)
+
+    week_start = target_date - timedelta(days=6)
+    date_range_str = f"{week_start.strftime('%d/%m/%Y')} - {target_date.strftime('%d/%m/%Y')}"
     
     lang = getattr(config, "bot_language", "en")
     
     locales = {
         "en": {
             "title": "📊 Weekly Activity Log",
-            "desc": "{role_mention} It's time to log your weekly in-game activity!\n\nPlease click the button below to submit your score for **{week_id}**.",
+            "desc": "{role_mention} It's time to log your weekly in-game activity!\n\nPlease click the button below to submit your score for **{week_id}** ({date_range}).",
             "btn": "Log Activity"
         },
         "it": {
             "title": "📊 Log Attività Settimanale",
-            "desc": "{role_mention} È il momento di registrare la tua attività settimanale!\n\nClicca il pulsante qui sotto per inviare il tuo punteggio per **{week_id}**.",
+            "desc": "{role_mention} È il momento di registrare la tua attività settimanale!\n\nClicca il pulsante qui sotto per inviare il tuo punteggio per **{week_id}** ({date_range}).",
             "btn": "Registra Attività"
         },
         "fr": {
             "title": "📊 Journal d'Activité Hebdomadaire",
-            "desc": "{role_mention} Il est temps d'enregistrer votre activité hebdomadaire!\n\nVeuillez cliquer sur le bouton ci-dessous pour soumettre votre score pour **{week_id}**.",
+            "desc": "{role_mention} Il est temps d'enregistrer votre activité hebdomadaire!\n\nVeuillez cliquer sur le bouton ci-dessous pour soumettre votre score pour **{week_id}** ({date_range}).",
             "btn": "Enregistrer l'activité"
         },
         "es": {
             "title": "📊 Registro de Actividad Semanal",
-            "desc": "{role_mention} ¡Es hora de registrar tu actividad semanal!\n\nHaz clic en el botón de abajo para enviar tu puntuación de **{week_id}**.",
+            "desc": "{role_mention} ¡Es hora de registrar tu actividad semanal!\n\nHaz clic en el botón de abajo para enviar tu puntuación de **{week_id}** ({date_range}).",
             "btn": "Registrar Actividad"
         },
         "de": {
             "title": "📊 Wöchentliches Aktivitätsprotokoll",
-            "desc": "{role_mention} Es ist Zeit, deine wöchentliche Aktivität einzutragen!\n\nBitte klicke auf den Button unten, um deine Punktzahl für **{week_id}** zu übermitteln.",
+            "desc": "{role_mention} Es ist Zeit, deine wöchentliche Aktivität einzutragen!\n\nBitte klicke auf den Button unten, um deine Punktzahl für **{week_id}** ({date_range}) zu übermitteln.",
             "btn": "Aktivität eintragen"
         }
     }
@@ -254,7 +269,7 @@ async def trigger_log_message(guild_id: str, admin = Depends(get_current_guild_a
     t = locales.get(lang, locales["en"])
     
     role_mention = f"<@&{config.member_role_id}>" if getattr(config, "member_role_id", None) else ""
-    description = t["desc"].replace("{role_mention}", role_mention).replace("{week_id}", week_id)
+    description = t["desc"].replace("{role_mention}", role_mention).replace("{week_id}", week_id).replace("{date_range}", date_range_str)
     
     payload = {
         "content": "",
@@ -273,7 +288,7 @@ async def trigger_log_message(guild_id: str, admin = Depends(get_current_guild_a
                         "type": 2,
                         "style": 1,
                         "label": t["btn"],
-                        "custom_id": "log_activity_btn",
+                        "custom_id": f"log_activity_btn:{week_id}",
                         "emoji": {
                             "name": "📝"
                         }

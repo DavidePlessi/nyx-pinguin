@@ -1,16 +1,16 @@
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-from datetime import datetime
+from datetime import datetime, timedelta
 from models import GuildConfig, WeeklyGameActivity, BotLog
 
 LOCALES = {
     "en": {
         "title": "📊 Weekly Activity Log",
-        "desc": "{role_mention} It's time to log your weekly in-game activity!\n\nPlease click the button below to submit your score for **{week_id}**.",
+        "desc": "{role_mention} It's time to log your weekly in-game activity!\n\nPlease click the button below to submit your score for **{week_id}** ({date_range}).",
         "btn": "Log Activity",
         "rem_title": "⚠️ Weekly Activity Reminder",
-        "rem_desc": "The following members still need to log their activity for **{week_id}**:\n\n{slackers}\n\nPlease click the button below to log your score before the cutoff!",
+        "rem_desc": "The following members still need to log their activity for **{week_id}** ({date_range}):\n\n{slackers}\n\nPlease click the button below to log your score before the cutoff!",
         "mod_title": "Log Weekly Activity",
         "mod_lbl": "Activity Score",
         "mod_ph": "e.g. 5500",
@@ -22,25 +22,25 @@ LOCALES = {
     },
     "it": {
         "title": "📊 Log Attività Settimanale",
-        "desc": "{role_mention} È il momento di registrare la tua attività settimanale!\n\nClicca il pulsante qui sotto per inviare il tuo punteggio per **{week_id}**.",
+        "desc": "{role_mention} È il momento di registrare la tua attività settimanale!\n\nClicca il pulsante qui sotto per inviare il tuo punteggio per **{week_id}** ({date_range}).",
         "btn": "Registra Attività",
         "rem_title": "⚠️ Promemoria Attività Settimanale",
-        "rem_desc": "I seguenti membri devono ancora registrare la loro attività per **{week_id}**:\n\n{slackers}\n\nClicca il pulsante qui sotto per inviare il tuo punteggio prima della scadenza!",
-        "mod_title": "Registra Attività",
+        "rem_desc": "I seguenti membri devono ancora registrare la loro attività per **{week_id}** ({date_range}):\n\n{slackers}\n\nClicca il pulsante qui sotto per registrare il tuo punteggio prima della chiusura!",
+        "mod_title": "Registra Attività Settimanale",
         "mod_lbl": "Punteggio Attività",
         "mod_ph": "es. 5500",
         "err_num": "Inserisci un numero valido.",
-        "err_dis": "Il tracciamento dell'attività non è abilitato per questo server.",
+        "err_dis": "Il tracciamento delle attività non è abilitato per questo server.",
         "err_neg": "Il punteggio non può essere negativo.",
-        "succ_upd": "Il tuo punteggio per {week_id} è stato aggiornato a **{score}**!",
-        "succ_log": "Il tuo punteggio di **{score}** è stato registrato per {week_id}. Grazie!"
+        "succ_upd": "Il tuo punteggio di attività per {week_id} è stato aggiornato a **{score}**!",
+        "succ_log": "Il tuo punteggio di attività di **{score}** è stato registrato per {week_id}. Grazie!"
     },
     "fr": {
         "title": "📊 Journal d'Activité Hebdomadaire",
-        "desc": "{role_mention} Il est temps d'enregistrer votre activité hebdomadaire!\n\nVeuillez cliquer sur le bouton ci-dessous pour soumettre votre score pour **{week_id}**.",
+        "desc": "{role_mention} Il est temps d'enregistrer votre activité hebdomadaire!\n\nVeuillez cliquer sur le bouton ci-dessous pour soumettre votre score pour **{week_id}** ({date_range}).",
         "btn": "Enregistrer l'activité",
         "rem_title": "⚠️ Rappel d'Activité Hebdomadaire",
-        "rem_desc": "Les membres suivants doivent encore enregistrer leur activité pour **{week_id}**:\n\n{slackers}\n\nVeuillez cliquer sur le bouton ci-dessous pour soumettre votre score avant la date limite!",
+        "rem_desc": "Les membres suivants doivent encore enregistrer leur activité pour **{week_id}** ({date_range}):\n\n{slackers}\n\nVeuillez cliquer sur le bouton ci-dessous pour enregistrer votre score avant la clôture!",
         "mod_title": "Enregistrer l'Activité",
         "mod_lbl": "Score d'Activité",
         "mod_ph": "ex. 5500",
@@ -48,14 +48,14 @@ LOCALES = {
         "err_dis": "Le suivi d'activité n'est pas activé pour ce serveur.",
         "err_neg": "Le score ne peut pas être négatif.",
         "succ_upd": "Votre score d'activité pour {week_id} a été mis à jour à **{score}**!",
-        "succ_log": "Votre score d'activité de **{score}** a été enregistré pour {week_id}. Merci!"
+        "succ_log": "Votre score d'activité de **{score}** est enregistré pour {week_id}. Merci!"
     },
     "es": {
         "title": "📊 Registro de Actividad Semanal",
-        "desc": "{role_mention} ¡Es hora de registrar tu actividad semanal!\n\nHaz clic en el botón de abajo para enviar tu puntuación de **{week_id}**.",
+        "desc": "{role_mention} ¡Es hora de registrar tu actividad semanal!\n\nHaz clic en el botón de abajo para enviar tu puntuación de **{week_id}** ({date_range}).",
         "btn": "Registrar Actividad",
         "rem_title": "⚠️ Recordatorio de Actividad Semanal",
-        "rem_desc": "Los siguientes miembros aún necesitan registrar su actividad para **{week_id}**:\n\n{slackers}\n\n¡Haz clic en el botón de abajo para registrar tu puntuación antes del cierre!",
+        "rem_desc": "Los siguientes miembros aún necesitan registrar su actividad para **{week_id}** ({date_range}):\n\n{slackers}\n\n¡Haz clic en el botón de abajo para registrar tu puntuación antes del cierre!",
         "mod_title": "Registrar Actividad",
         "mod_lbl": "Puntuación de Actividad",
         "mod_ph": "ej. 5500",
@@ -67,10 +67,10 @@ LOCALES = {
     },
     "de": {
         "title": "📊 Wöchentliches Aktivitätsprotokoll",
-        "desc": "{role_mention} Es ist Zeit, deine wöchentliche Aktivität einzutragen!\n\nBitte klicke auf den Button unten, um deine Punktzahl für **{week_id}** zu übermitteln.",
+        "desc": "{role_mention} Es ist Zeit, deine wöchentliche Aktivität einzutragen!\n\nBitte klicke auf den Button unten, um deine Punktzahl für **{week_id}** ({date_range}) zu übermitteln.",
         "btn": "Aktivität eintragen",
         "rem_title": "⚠️ Wöchentliche Aktivität Erinnerung",
-        "rem_desc": "Die folgenden Mitglieder müssen ihre Aktivität für **{week_id}** noch eintragen:\n\n{slackers}\n\nBitte klicke auf den Button unten, um deine Punktzahl vor dem Stichtag einzutragen!",
+        "rem_desc": "Die folgenden Mitglieder müssen ihre Aktivität für **{week_id}** ({date_range}) noch eintragen:\n\n{slackers}\n\nBitte klicke auf den Button unten, um deine Punktzahl vor dem Stichtag einzutragen!",
         "mod_title": "Aktivität eintragen",
         "mod_lbl": "Aktivitätspunktzahl",
         "mod_ph": "z.B. 5500",
@@ -83,9 +83,10 @@ LOCALES = {
 }
 
 class LogActivityModal(discord.ui.Modal):
-    def __init__(self, t: dict):
+    def __init__(self, t: dict, week_id: str):
         super().__init__(title=t["mod_title"])
         self.t = t
+        self.week_id = week_id
         self.score_input = discord.ui.TextInput(
             label=t["mod_lbl"],
             style=discord.TextStyle.short,
@@ -94,11 +95,6 @@ class LogActivityModal(discord.ui.Modal):
             custom_id="score_input"
         )
         self.add_item(self.score_input)
-
-    def get_current_week_id(self):
-        now = datetime.utcnow()
-        year, week, _ = now.isocalendar()
-        return f"{year}-W{week:02d}"
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
@@ -118,7 +114,7 @@ class LogActivityModal(discord.ui.Modal):
             await interaction.response.send_message(self.t["err_neg"], ephemeral=True)
             return
 
-        week_id = self.get_current_week_id()
+        week_id = self.week_id
         player_id = str(interaction.user.id)
         player_name = interaction.user.display_name
         
@@ -148,37 +144,38 @@ class LogActivityModal(discord.ui.Modal):
 
 
 class LogActivityView(discord.ui.View):
-    def __init__(self, t: dict = None):
+    def __init__(self, t: dict, week_id: str):
         super().__init__(timeout=None)
-        # If instantiated globally for persistent catch, button label defaults to English but doesn't matter
         btn_label = t["btn"] if t else "Log Activity"
-        
-        # We must create the button dynamically to translate its label before sending to channel
-        self.btn = discord.ui.Button(label=btn_label, style=discord.ButtonStyle.primary, custom_id="log_activity_btn", emoji="📝")
-        self.btn.callback = self.log_activity_button
+        self.btn = discord.ui.Button(label=btn_label, style=discord.ButtonStyle.primary, custom_id=f"log_activity_btn:{week_id}", emoji="📝")
         self.add_item(self.btn)
-
-    async def log_activity_button(self, interaction: discord.Interaction):
-        # We look up language dynamically when clicked!
-        guild_id = str(interaction.guild_id)
-        config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
-        lang = getattr(config, "bot_language", "en") if config else "en"
-        t = LOCALES.get(lang, LOCALES["en"])
-        await interaction.response.send_modal(LogActivityModal(t))
 
 
 class WeeklyActivity(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.add_view(LogActivityView())
         self.weekly_activity_loop.start()
 
     def cog_unload(self):
         self.weekly_activity_loop.cancel()
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        if interaction.type == discord.InteractionType.component:
+            custom_id = interaction.data.get("custom_id", "")
+            if custom_id.startswith("log_activity_btn:"):
+                week_id = custom_id.split(":")[1]
+                guild_id = str(interaction.guild_id)
+                config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+                lang = getattr(config, "bot_language", "en") if config else "en"
+                t = LOCALES.get(lang, LOCALES["en"])
+                await interaction.response.send_modal(LogActivityModal(t, week_id))
         
-    def get_current_week_id(self):
+    def get_current_week_id(self, target_day=3):
         now = datetime.utcnow()
-        year, week, _ = now.isocalendar()
+        days_until_target = (target_day - now.weekday()) % 7
+        target_date = now + timedelta(days=days_until_target)
+        year, week, _ = target_date.isocalendar()
         return f"{year}-W{week:02d}"
 
     @tasks.loop(minutes=1)
@@ -186,13 +183,15 @@ class WeeklyActivity(commands.Cog):
         now = datetime.utcnow()
         current_day = now.weekday() # 0 = Monday, 6 = Sunday
         current_time_str = now.strftime("%H:%M")
-        week_id = self.get_current_week_id()
         
         configs = await GuildConfig.find(GuildConfig.weekly_activity_enabled == True).to_list()
         
         for config in configs:
+            target_day = getattr(config, "weekly_activity_day", 3)
+            week_id = self.get_current_week_id(target_day)
+            
             # Check if today is the correct day
-            if getattr(config, "weekly_activity_day", -1) != current_day:
+            if target_day != current_day:
                 continue
                 
             channel_id = getattr(config, "weekly_activity_channel_id", None)
