@@ -330,6 +330,7 @@
     "status": "Status",
     "eligible": "Berechtigt",
     "notEligible": "Nicht Berechtigt",
-    "targetWeek": "Woche auswählen"
+    "targetWeek": "Woche auswählen",
+    "allWeeks": "Alle Wochen"
   }
 }

@@ -78,15 +78,134 @@ const adminGuildsInfo = ref<any[]>([])
 const adminGuildId = ref<string>('')
 const targetWeekId = ref('')
 
+const computedTargetWeekDates = computed(() => {
+  const targetDay = dropConfig.value.weekly_activity_day !== undefined ? dropConfig.value.weekly_activity_day : 3
+  let targetDate = new Date()
+  
+  if (targetWeekId.value) {
+    const [yearStr, weekStr] = targetWeekId.value.split('-W')
+    const y = parseInt(yearStr)
+    const w = parseInt(weekStr)
+    
+    // Get Monday of ISO week
+    const simple = new Date(y, 0, 1 + (w - 1) * 7)
+    const dow = simple.getDay()
+    targetDate = simple
+    if (dow <= 4)
+        targetDate.setDate(simple.getDate() - simple.getDay() + 1)
+    else
+        targetDate.setDate(simple.getDate() + 8 - simple.getDay())
+        
+    // Advance to the exact target_day within this ISO week
+    targetDate.setDate(targetDate.getDate() + targetDay)
+    
+    const weekEnd = new Date(targetDate)
+    weekEnd.setHours(23, 59, 59, 999)
+    
+    const weekStart = new Date(weekEnd)
+    weekStart.setDate(weekEnd.getDate() - 6)
+    weekStart.setHours(0, 0, 0, 0)
+    
+    return { start: weekStart, end: weekEnd }
+  }
+  
+  // If no targetWeekId (Current Week), find the NEXT targetDay relative to NOW
+  let currentDow = targetDate.getDay()
+  // Adjust JS getDay (0=Sun, 1=Mon) to Python weekday (0=Mon, 6=Sun)
+  let pyDow = currentDow === 0 ? 6 : currentDow - 1
+  let daysUntilTarget = (targetDay - pyDow) % 7
+  if (daysUntilTarget < 0) daysUntilTarget += 7
+  
+  const weekEnd = new Date(targetDate)
+  weekEnd.setDate(targetDate.getDate() + daysUntilTarget)
+  weekEnd.setHours(23, 59, 59, 999)
+  
+  const weekStart = new Date(weekEnd)
+  weekStart.setDate(weekEnd.getDate() - 6)
+  weekStart.setHours(0, 0, 0, 0)
+  
+  return { start: weekStart, end: weekEnd }
+})
+
+const targetWeekStart = computed(() => targetWeekId.value || targetWeekId.value === '' ? computedTargetWeekDates.value.start.toISOString() : '')
+const targetWeekEnd = computed(() => targetWeekId.value || targetWeekId.value === '' ? computedTargetWeekDates.value.end.toISOString() : '')
+
 // Chart color palette
 const colors = [
   '#4ade80', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa',
   '#2dd4bf', '#fb923c', '#f87171', '#38bdf8', '#c0caf5'
 ]
 
+const getCurrentIsoWeek = (d: Date) => {
+  const date = new Date(d.getTime())
+  date.setHours(0, 0, 0, 0)
+  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7)
+  const week1 = new Date(date.getFullYear(), 0, 4)
+  const weekNum = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)
+  return `${date.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`
+}
+
 const availableWeeks = computed(() => {
-  return Object.keys(weeklyData.value).sort().reverse()
+  const weeks = Object.keys(weeklyData.value)
+  
+  const targetDay = dropConfig.value.weekly_activity_day !== undefined ? dropConfig.value.weekly_activity_day : 3
+  let targetDate = new Date()
+  let currentDow = targetDate.getDay()
+  let pyDow = currentDow === 0 ? 6 : currentDow - 1
+  let daysUntilTarget = (targetDay - pyDow) % 7
+  if (daysUntilTarget < 0) daysUntilTarget += 7
+  
+  const weekEnd = new Date(targetDate)
+  weekEnd.setDate(targetDate.getDate() + daysUntilTarget)
+  
+  const inProgressWeek = getCurrentIsoWeek(weekEnd)
+  if (!weeks.includes(inProgressWeek)) {
+    weeks.push(inProgressWeek)
+  }
+  
+  return weeks.sort().reverse()
 })
+
+const last12Weeks = computed(() => {
+  const weeks = []
+  const now = new Date()
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now)
+    d.setDate(now.getDate() - i * 7)
+    const date = new Date(d.getTime())
+    date.setHours(0, 0, 0, 0)
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7)
+    const week1 = new Date(date.getFullYear(), 0, 4)
+    const weekNum = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)
+    weeks.push(`${date.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`)
+  }
+  return [...new Set(weeks)]
+})
+
+const applyWeekShortcut = () => {
+  if (!globalWeekShortcut.value) return
+  
+  const [yearStr, weekStr] = globalWeekShortcut.value.split('-W')
+  const y = parseInt(yearStr)
+  const w = parseInt(weekStr)
+  
+  const simple = new Date(y, 0, 1 + (w - 1) * 7)
+  const dow = simple.getDay()
+  const ISOweekStart = simple
+  if (dow <= 4)
+      ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1)
+  else
+      ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay())
+      
+  const weekStartStr = ISOweekStart.toISOString().split('T')[0]
+  
+  const ISOweekEnd = new Date(ISOweekStart)
+  ISOweekEnd.setDate(ISOweekStart.getDate() + 6)
+  const weekEndStr = ISOweekEnd.toISOString().split('T')[0]
+  
+  fromDate.value = weekStartStr
+  toDate.value = weekEndStr
+}
 
 const fetchActivity = async () => {
   if (!adminGuildId.value) return
@@ -99,9 +218,6 @@ const fetchActivity = async () => {
       tDate.setHours(23, 59, 59, 999)
       url += `to_date=${tDate.toISOString()}&`
     }
-    if (targetWeekId.value) {
-      url += `target_week_id=${targetWeekId.value}&`
-    }
     
     const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${sessionToken.value}` }
@@ -112,13 +228,14 @@ const fetchActivity = async () => {
       eventsList.value = data.events || []
       weeklyData.value = data.weekly_data || {}
       totalEvents.value = data.total_events || 0
+      
       if (data.drop_config) {
         dropConfig.value = data.drop_config
       }
       
       // Auto-select top 10 players for chart if none selected
-      if (selectedPlayers.value.size === 0 && activities.value.length > 0) {
-        const top10 = [...activities.value].sort((a, b) => b.total_events - a.total_events).slice(0, 10)
+      if (selectedPlayers.value.size === 0 && filteredActivities.value.length > 0) {
+        const top10 = [...filteredActivities.value].sort((a, b) => b.total_events - a.total_events).slice(0, 10)
         top10.forEach(p => selectedPlayers.value.add(p.player_id))
       }
     } else {
@@ -259,8 +376,59 @@ const toggleEvent = (eventId: string) => {
   }
 }
 
+const filteredEventsList = computed(() => {
+  if (!targetWeekId.value || !targetWeekStart.value || !targetWeekEnd.value) {
+    return eventsList.value
+  }
+  const start = new Date(targetWeekStart.value).getTime()
+  const end = new Date(targetWeekEnd.value).getTime()
+  return eventsList.value.filter(e => {
+    const d = new Date(e.date).getTime()
+    return d >= start && d <= end
+  })
+})
+
+const filteredActivities = computed(() => {
+  if (!targetWeekId.value || !targetWeekStart.value || !targetWeekEnd.value) {
+    return activities.value
+  }
+  const start = new Date(targetWeekStart.value).getTime()
+  const end = new Date(targetWeekEnd.value).getTime()
+  
+  const minEvents = dropConfig.value?.min_events || 2
+  const minScore = dropConfig.value?.min_weekly_activity || 5500
+  
+  return activities.value.map(p => {
+    const pEvents = p.events.filter(e => {
+      const d = new Date(e.date).getTime()
+      return d >= start && d <= end
+    })
+    
+    let currentScore = 0
+    if (p.weekly_activity_history) {
+      const hist = p.weekly_activity_history.find((h: any) => h.week_id === targetWeekId.value)
+      if (hist) currentScore = hist.score
+    }
+    
+    const isEligible = pEvents.length >= minEvents || currentScore > minScore
+    
+    return {
+      ...p,
+      total_events: pEvents.length,
+      recent_pvp_events: pEvents.length,
+      events: pEvents,
+      weekly_game_activity: currentScore,
+      is_eligible_for_drop: isEligible
+    }
+  }).filter(p => p.total_events > 0 || p.weekly_game_activity > 0)
+})
+
+const currentTotalEvents = computed(() => {
+  return filteredEventsList.value.length
+})
+
 const sortedActivities = computed(() => {
-  let filtered = activities.value
+  let filtered = filteredActivities.value
   
   if (playerSearchQuery.value) {
     const q = playerSearchQuery.value.toLowerCase()
@@ -273,8 +441,8 @@ const sortedActivities = computed(() => {
     
     // Add computed attendance field for sorting
     if (sortKey.value === 'attendance') {
-        valA = totalEvents.value ? (a.total_events / totalEvents.value) : 0
-        valB = totalEvents.value ? (b.total_events / totalEvents.value) : 0
+        valA = currentTotalEvents.value ? (a.total_events / currentTotalEvents.value) : 0
+        valB = currentTotalEvents.value ? (b.total_events / currentTotalEvents.value) : 0
     }
 
     if (typeof valA === 'string') valA = valA.toLowerCase()
@@ -294,8 +462,21 @@ const togglePlayerSelection = (playerId: string) => {
   }
 }
 
+const areAllSelected = computed(() => {
+  return sortedActivities.value.length > 0 && 
+         sortedActivities.value.every(p => selectedPlayers.value.has(p.player_id))
+})
+
+const toggleAllSelection = () => {
+  if (areAllSelected.value) {
+    selectedPlayers.value.clear()
+  } else {
+    sortedActivities.value.forEach(p => selectedPlayers.value.add(p.player_id))
+  }
+}
+
 const sortedEventsList = computed(() => {
-  return [...eventsList.value].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return [...filteredEventsList.value].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 })
 
 const chartData = computed(() => {
@@ -350,8 +531,18 @@ const chartOptions = {
   }
 }
 
+// Auto-select top 10 when week filter changes
+watch(targetWeekId, () => {
+  selectedPlayers.value.clear()
+  if (filteredActivities.value.length > 0) {
+    const top10 = [...filteredActivities.value].sort((a, b) => b.total_events - a.total_events).slice(0, 10)
+    top10.forEach(p => selectedPlayers.value.add(p.player_id))
+  }
+})
+
 // Watch filters to trigger fetch
 watch([fromDate, toDate], () => {
+  selectedPlayers.value.clear()
   fetchActivity()
 })
 </script>
@@ -371,6 +562,7 @@ watch([fromDate, toDate], () => {
       <h1 class="text-2xl sm:text-3xl font-bold text-gray-100 uppercase tracking-wide w-full xl:w-auto text-center xl:text-left">{{ t('activity.title') }}</h1>
       
       <div class="flex flex-col sm:flex-row flex-wrap items-center gap-3 sm:gap-4 w-full xl:w-auto justify-center xl:justify-end">
+        
         <!-- Date Filters -->
         <div class="flex items-center gap-2 w-full sm:w-auto justify-center">
           <input type="date" v-model="fromDate" class="bg-gray-800 border border-gray-700 text-gray-300 px-3 py-2 sm:py-1 rounded outline-none focus:border-blue-500 text-sm flex-1 sm:flex-none">
@@ -388,13 +580,22 @@ watch([fromDate, toDate], () => {
         </select>
         
         <button 
+          @click="fetchActivity" 
+          :disabled="loading || !adminGuildId"
+          title="Aggiorna Dati"
+          class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded font-medium disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto border border-gray-600"
+        >
+          <svg class="w-4 h-4" :class="{'animate-spin': loading}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+
+        <button 
           v-if="['admin', 'guild_admin'].includes(userRole)"
           @click="forceSync" 
           :disabled="syncing || !adminGuildId"
           title="Force Sync Raid-Helper"
           class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto"
         >
-          <svg class="w-4 h-4" :class="{'animate-spin': syncing}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          <svg class="w-4 h-4" :class="{'animate-bounce': syncing}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
         </button>
         
         <button 
@@ -466,9 +667,22 @@ watch([fromDate, toDate], () => {
 
         <!-- Summary & Table / Deck -->
         <div class="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
-          <div class="p-4 sm:p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center gap-2">
-            <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.roster') }}</h2>
-            <div class="text-xs sm:text-sm font-mono text-gray-400">{{ t('activity.totalEvents') }} <strong class="text-white">{{ totalEvents }}</strong></div>
+          <div class="p-4 sm:p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.roster') }}</h2>
+              <div class="text-xs sm:text-sm font-mono text-gray-400 mt-1">{{ t('activity.totalEvents') }} <strong class="text-white">{{ currentTotalEvents }}</strong></div>
+              <p v-if="targetWeekId && targetWeekStart && targetWeekEnd" class="text-xs font-mono text-blue-400 mt-1">
+                 {{ new Date(targetWeekStart).toLocaleDateString() }} - {{ new Date(targetWeekEnd).toLocaleDateString() }}
+              </p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek', 'Select Week') }}:</label>
+               <select v-model="targetWeekId" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
+                 <option value="">{{ t('activity.allWeeks', 'All Weeks (Filter Range)') }}</option>
+                 <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
+               </select>
+             </div>
           </div>
           
           <!-- Mobile Controls (Sort & Filter) -->
@@ -517,13 +731,13 @@ watch([fromDate, toDate], () => {
                 <div class="grid grid-cols-3 gap-3 text-sm cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                   <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
                     <p class="text-gray-500 text-[10px] uppercase mb-1 truncate">{{ t('activity.eventsAttended') }}</p>
-                    <p><span class="font-bold text-gray-100 text-base">{{ player.total_events }}</span> <span class="text-gray-500 text-xs">/ {{ totalEvents }}</span></p>
+                    <p><span class="font-bold text-gray-100 text-base">{{ player.total_events }}</span> <span class="text-gray-500 text-xs">/ {{ currentTotalEvents }}</span></p>
                   </div>
                   <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
                     <p class="text-gray-500 text-[10px] uppercase mb-1 truncate">{{ t('activity.attendance') }}</p>
                     <div class="flex items-center gap-2 mt-1">
-                      <span class="font-mono text-sm font-bold" :class="{'text-green-400': (player.total_events / totalEvents) >= 0.8, 'text-yellow-400': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'text-red-400': (player.total_events / totalEvents) < 0.5}">
-                        {{ totalEvents ? Math.round((player.total_events / totalEvents) * 100) : 0 }}%
+                      <span class="font-mono text-sm font-bold" :class="{'text-green-400': (player.total_events / currentTotalEvents) >= 0.8, 'text-yellow-400': (player.total_events / currentTotalEvents) >= 0.5 && (player.total_events / currentTotalEvents) < 0.8, 'text-red-400': (player.total_events / currentTotalEvents) < 0.5}">
+                        {{ currentTotalEvents ? Math.round((player.total_events / currentTotalEvents) * 100) : 0 }}%
                       </span>
                     </div>
                   </div>
@@ -567,7 +781,11 @@ watch([fromDate, toDate], () => {
             <table class="w-full text-left text-gray-300">
               <thead class="bg-gray-900 text-gray-400 uppercase text-xs tracking-wider">
               <tr>
-                <th class="p-4 w-12 text-center">{{ t('activity.chart') }}</th>
+                <th class="p-4 w-12 text-center align-top pt-5">
+                  <div class="flex justify-center" title="Select/Deselect All">
+                    <input type="checkbox" :checked="areAllSelected" @change="toggleAllSelection" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/50 cursor-pointer">
+                  </div>
+                </th>
                 <th class="p-4">
                   <div class="flex flex-col gap-2">
                     <div class="cursor-pointer hover:text-white flex items-center w-max" @click="sortBy('player_name')">
@@ -615,17 +833,17 @@ watch([fromDate, toDate], () => {
                   </td>
                   <td class="p-4 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                     <span class="font-bold text-gray-100">{{ player.total_events }}</span>
-                    <span class="text-gray-500 text-xs ml-1">/ {{ totalEvents }}</span>
+                    <span class="text-gray-500 text-xs ml-1">/ {{ currentTotalEvents }}</span>
                   </td>
                   <td class="p-4 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                     <div class="flex items-center gap-3">
-                      <span class="w-12 text-right font-mono text-sm" :class="{'text-green-400': (player.total_events / totalEvents) >= 0.8, 'text-yellow-400': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'text-red-400': (player.total_events / totalEvents) < 0.5}">
-                        {{ totalEvents ? Math.round((player.total_events / totalEvents) * 100) : 0 }}%
+                      <span class="w-12 text-right font-mono text-sm" :class="{'text-green-400': (player.total_events / currentTotalEvents) >= 0.8, 'text-yellow-400': (player.total_events / currentTotalEvents) >= 0.5 && (player.total_events / currentTotalEvents) < 0.8, 'text-red-400': (player.total_events / currentTotalEvents) < 0.5}">
+                        {{ currentTotalEvents ? Math.round((player.total_events / currentTotalEvents) * 100) : 0 }}%
                       </span>
                       <div class="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
                         <div class="h-full rounded-full transition-all" 
-                          :class="{'bg-green-500': (player.total_events / totalEvents) >= 0.8, 'bg-yellow-500': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'bg-red-500': (player.total_events / totalEvents) < 0.5}"
-                          :style="`width: ${totalEvents ? (player.total_events / totalEvents) * 100 : 0}%`"></div>
+                          :class="{'bg-green-500': (player.total_events / currentTotalEvents) >= 0.8, 'bg-yellow-500': (player.total_events / currentTotalEvents) >= 0.5 && (player.total_events / currentTotalEvents) < 0.8, 'bg-red-500': (player.total_events / currentTotalEvents) < 0.5}"
+                          :style="`width: ${currentTotalEvents ? (player.total_events / currentTotalEvents) * 100 : 0}%`"></div>
                       </div>
                     </div>
                   </td>
@@ -684,11 +902,14 @@ watch([fromDate, toDate], () => {
           <div class="p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center flex-wrap gap-4">
              <div>
                <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.eligibleForDrop') }}</h2>
-               <p class="text-xs text-gray-400 mt-1">{{ t('activity.eligibleRule').replace('{events}', dropConfig.min_events.toString()).replace('{score}', dropConfig.min_weekly_activity.toString()) }}</p>
+               <p class="text-xs text-gray-400 mt-1">{{ t('activity.eligibleRule').replace('{events}', dropConfig.min_events).replace('{score}', dropConfig.min_weekly_activity) }}</p>
+               <p v-if="targetWeekStart && targetWeekEnd" class="text-xs font-mono text-blue-400 mt-1">
+                 {{ new Date(targetWeekStart).toLocaleDateString() }} - {{ new Date(targetWeekEnd).toLocaleDateString() }}
+               </p>
              </div>
              <div class="flex items-center gap-2">
-               <label class="text-sm text-gray-400">{{ t('activity.targetWeek') }}:</label>
-               <select v-model="targetWeekId" @change="fetchActivity" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek', 'Select Week') }}:</label>
+               <select v-model="targetWeekId" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
                  <option value="">Current Week</option>
                  <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
                </select>
@@ -745,6 +966,26 @@ watch([fromDate, toDate], () => {
 
       <!-- EVENT CENTRIC VIEW -->
       <div v-if="activeTab === 'event'" class="space-y-4 animate-fade-in">
+        
+        <!-- Filter Header -->
+        <div class="bg-gray-800 rounded-lg shadow border border-gray-700">
+          <div class="p-4 bg-gray-900/50 border-gray-700 flex justify-between items-center flex-wrap gap-4 rounded-lg">
+             <div>
+               <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.eventCentric') }}</h2>
+               <p v-if="targetWeekId && targetWeekStart && targetWeekEnd" class="text-xs font-mono text-blue-400 mt-1">
+                 {{ new Date(targetWeekStart).toLocaleDateString() }} - {{ new Date(targetWeekEnd).toLocaleDateString() }}
+               </p>
+             </div>
+             <div class="flex items-center gap-2">
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek', 'Select Week') }}:</label>
+               <select v-model="targetWeekId" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
+                 <option value="">{{ t('activity.allWeeks', 'All Weeks (Filter Range)') }}</option>
+                 <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
+               </select>
+             </div>
+          </div>
+        </div>
+
         <div v-if="sortedEventsList.length === 0" class="text-center p-6 sm:p-10 text-gray-500 italic bg-gray-800 rounded-lg border border-gray-700">
           {{ t('activity.noEventsView') }}
         </div>

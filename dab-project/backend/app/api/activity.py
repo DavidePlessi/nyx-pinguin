@@ -133,8 +133,8 @@ async def get_activity(
     drop_min_events = guild.drop_min_events if guild else 2
     drop_min_weekly_activity = guild.drop_min_weekly_activity if guild else 5500
     
-    days_since_target = (target_date.weekday() - target_day) % 7
-    week_end = target_date - timedelta(days=days_since_target)
+    days_until_target = (target_day - target_date.weekday()) % 7
+    week_end = target_date + timedelta(days=days_until_target)
     week_end = week_end.replace(hour=23, minute=59, second=59, microsecond=999999)
     week_start = week_end - timedelta(days=6)
     week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -180,9 +180,12 @@ async def get_activity(
         "players": list(player_data.values()),
         "events": list(event_data.values()),
         "weekly_data": weekly_data,
+        "target_week_start": week_start.isoformat(),
+        "target_week_end": week_end.isoformat(),
         "drop_config": {
             "min_events": drop_min_events,
-            "min_weekly_activity": drop_min_weekly_activity
+            "min_weekly_activity": drop_min_weekly_activity,
+            "weekly_activity_day": target_day
         }
     }
 

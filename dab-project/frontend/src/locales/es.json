@@ -330,6 +330,7 @@
     "status": "Estado",
     "eligible": "Elegible",
     "notEligible": "No Elegible",
-    "targetWeek": "Seleccionar Semana"
+    "targetWeek": "Seleccionar Semana",
+    "allWeeks": "Todas las Semanas"
   }
 }

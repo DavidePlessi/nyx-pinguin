@@ -330,6 +330,7 @@
     "status": "Status",
     "eligible": "Eligible",
     "notEligible": "Not Eligible",
-    "targetWeek": "Select Week"
+    "targetWeek": "Select Week",
+    "allWeeks": "All Weeks"
   }
 }
