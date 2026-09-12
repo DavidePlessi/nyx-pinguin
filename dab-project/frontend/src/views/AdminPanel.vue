@@ -21,13 +21,13 @@ const apiInstances = ref({
   invidious: ''
 })
 
-const guildConfigState = ref({
-  guild_id: '',
-  member_role_id: '',
-  drop_channel_id: '',
-  raid_helper_api_key: '',
-  raid_helper_channel_id: ''
-})
+// const guildConfigState = ref({
+//   guild_id: '',
+//   member_role_id: '',
+//   drop_channel_id: '',
+//   raid_helper_api_key: '',
+//   raid_helper_channel_id: ''
+// })
 
 const allAppGuilds = ref<any[]>([])
 const newGuildForm = ref({ name: '', guild_id: '' })
