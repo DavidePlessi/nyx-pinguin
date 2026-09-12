@@ -150,6 +150,18 @@ async def get_activity(
         if act.player_id not in recent_events_count:
             recent_events_count[act.player_id] = set()
         recent_events_count[act.player_id].add(act.event_id)
+        
+    # Ensure players that only have WeeklyGameActivity (no Raid Helper events) are included
+    for wa in all_weekly_scores_db:
+        if wa.player_id not in player_data:
+            player_data[wa.player_id] = {
+                "player_id": wa.player_id,
+                "player_name": wa.player_name,
+                "total_events": 0,
+                "events": [],
+                "weekly_game_activity": 0,
+                "has_current_weekly_activity": False
+            }
     
     for p in player_data.values():
         p["weekly_game_activity"] = weekly_scores_map.get(p["player_id"], 0)
