@@ -15,10 +15,43 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Legend)
 
+import CyberModal from '../components/CyberModal.vue'
+
+const modalState = ref({
+  show: false,
+  title: '',
+  message: '',
+  isConfirm: false,
+  resolve: null as ((value: boolean) => void) | null
+})
+
+const showAlert = (message: string, title?: string) => {
+  return new Promise<boolean>((resolve) => {
+    modalState.value = { show: true, title: title || t('modal.systemAlert'), message, isConfirm: false, resolve }
+  })
+}
+
+const showConfirm = (message: string, title?: string) => {
+  return new Promise<boolean>((resolve) => {
+    modalState.value = { show: true, title: title || t('modal.systemAlert'), message, isConfirm: true, resolve }
+  })
+}
+
+const handleModalConfirm = () => {
+  if (modalState.value.resolve) modalState.value.resolve(true)
+  modalState.value.show = false
+}
+
+const handleModalCancel = () => {
+  if (modalState.value.resolve) modalState.value.resolve(false)
+  modalState.value.show = false
+}
+
 const activities = ref<any[]>([])
 const eventsList = ref<any[]>([])
 const weeklyData = ref<Record<string, any>>({})
 const totalEvents = ref(0)
+const dropConfig = ref({ min_events: 2, min_weekly_activity: 5500 })
 
 const activeTab = ref('player') // 'player' or 'event'
 const expandedEvents = ref<Set<string>>(new Set())
@@ -43,12 +76,17 @@ const userRole = ref<string>('user')
 const adminGuilds = ref<string[]>([])
 const adminGuildsInfo = ref<any[]>([])
 const adminGuildId = ref<string>('')
+const targetWeekId = ref('')
 
 // Chart color palette
 const colors = [
   '#4ade80', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa',
   '#2dd4bf', '#fb923c', '#f87171', '#38bdf8', '#c0caf5'
 ]
+
+const availableWeeks = computed(() => {
+  return Object.keys(weeklyData.value).sort().reverse()
+})
 
 const fetchActivity = async () => {
   if (!adminGuildId.value) return
@@ -59,7 +97,10 @@ const fetchActivity = async () => {
     if (toDate.value) {
       let tDate = new Date(toDate.value)
       tDate.setHours(23, 59, 59, 999)
-      url += `to_date=${tDate.toISOString()}`
+      url += `to_date=${tDate.toISOString()}&`
+    }
+    if (targetWeekId.value) {
+      url += `target_week_id=${targetWeekId.value}&`
     }
     
     const res = await fetch(url, {
@@ -71,6 +112,9 @@ const fetchActivity = async () => {
       eventsList.value = data.events || []
       weeklyData.value = data.weekly_data || {}
       totalEvents.value = data.total_events || 0
+      if (data.drop_config) {
+        dropConfig.value = data.drop_config
+      }
       
       // Auto-select top 10 players for chart if none selected
       if (selectedPlayers.value.size === 0 && activities.value.length > 0) {
@@ -102,11 +146,37 @@ const forceSync = async () => {
       await fetchActivity()
     } else {
       const data = await res.json()
-      alert('Sync failed: ' + (data.detail || 'Unknown error'))
+      await showAlert('Sync failed: ' + (data.detail || 'Unknown error'), 'ERRORE')
     }
   } catch (err) {
     console.error('Failed to sync', err)
-    alert('Network error')
+    await showAlert('Network error', 'ERRORE')
+  } finally {
+    syncing.value = false
+  }
+}
+
+const triggerLogMessage = async () => {
+  if (!adminGuildId.value) return
+  
+  const confirmed = await showConfirm("Sei sicuro di voler inviare il messaggio di log attività su Discord ora?", "CONFERMA")
+  if (!confirmed) return
+  
+  syncing.value = true
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/activity/trigger_log_message/${adminGuildId.value}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+    })
+    if (res.ok) {
+      await showAlert('Messaggio inviato con successo!', 'SUCCESSO')
+    } else {
+      const data = await res.json()
+      await showAlert('Errore: ' + (data.detail || 'Errore sconosciuto'), 'ERRORE')
+    }
+  } catch (err) {
+    console.error('Failed to trigger message', err)
+    await showAlert('Errore di rete', 'ERRORE')
   } finally {
     syncing.value = false
   }
@@ -191,6 +261,7 @@ const toggleEvent = (eventId: string) => {
 
 const sortedActivities = computed(() => {
   let filtered = activities.value
+  
   if (playerSearchQuery.value) {
     const q = playerSearchQuery.value.toLowerCase()
     filtered = filtered.filter(p => p.player_name.toLowerCase().includes(q))
@@ -287,6 +358,15 @@ watch([fromDate, toDate], () => {
 
 <template>
   <div class="p-4 sm:p-6 max-w-7xl mx-auto">
+    <CyberModal 
+      :show="modalState.show" 
+      :title="modalState.title" 
+      :message="modalState.message" 
+      :isConfirm="modalState.isConfirm"
+      @confirm="handleModalConfirm"
+      @cancel="handleModalCancel"
+    />
+    
     <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
       <h1 class="text-2xl sm:text-3xl font-bold text-gray-100 uppercase tracking-wide w-full xl:w-auto text-center xl:text-left">{{ t('activity.title') }}</h1>
       
@@ -311,9 +391,20 @@ watch([fromDate, toDate], () => {
           v-if="['admin', 'guild_admin'].includes(userRole)"
           @click="forceSync" 
           :disabled="syncing || !adminGuildId"
+          title="Force Sync Raid-Helper"
           class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto"
         >
           <svg class="w-4 h-4" :class="{'animate-spin': syncing}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+        
+        <button 
+          v-if="['admin', 'guild_admin'].includes(userRole)"
+          @click="triggerLogMessage" 
+          :disabled="syncing || !adminGuildId"
+          title="Invia messaggio settimanale ora"
+          class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
         </button>
       </div>
     </div>
@@ -337,6 +428,13 @@ watch([fromDate, toDate], () => {
           :class="activeTab === 'event' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200'"
         >
           {{ t('activity.eventCentric') }}
+        </button>
+        <button 
+          @click="activeTab = 'eligible'" 
+          class="px-4 sm:px-6 py-3 font-semibold text-sm transition-colors border-b-2 flex-1 sm:flex-none"
+          :class="activeTab === 'eligible' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200'"
+        >
+          {{ t('activity.eligibleForDrop') }}
         </button>
       </div>
 
@@ -389,6 +487,10 @@ watch([fromDate, toDate], () => {
                 {{ t('activity.attendance') }}
                 <span v-if="sortKey === 'attendance'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
               </button>
+              <button @click="sortBy('weekly_game_activity')" class="px-3 py-2 rounded border flex items-center gap-1 transition-colors" :class="{'bg-gray-700 text-white border-gray-500': sortKey === 'weekly_game_activity', 'bg-gray-800 text-gray-400 border-gray-700': sortKey !== 'weekly_game_activity'}">
+                {{ t('activity.weeklyActivity') }}
+                <span v-if="sortKey === 'weekly_game_activity'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
+              </button>
             </div>
           </div>
           
@@ -402,36 +504,57 @@ watch([fromDate, toDate], () => {
                 <div class="flex justify-between items-center mb-4">
                   <div class="flex items-center gap-3 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                     <svg class="w-5 h-5 text-gray-500 transition-transform shrink-0" :class="{'rotate-180': expandedPlayers.has(player.player_id)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    <span class="font-bold text-gray-100 text-lg truncate">{{ player.player_name }}</span>
+                    <span class="font-bold text-gray-100 text-lg truncate flex items-center gap-2">
+                      {{ player.player_name }}
+                      <svg v-if="!player.has_current_weekly_activity" class="w-5 h-5 text-red-500" title="Missing Weekly Activity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </span>
                   </div>
                   <div class="cursor-pointer p-2 -mr-2 shrink-0" @click="togglePlayerSelection(player.player_id)">
                     <input type="checkbox" :checked="selectedPlayers.has(player.player_id)" class="pointer-events-none w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/50">
                   </div>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4 text-sm cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
+                <div class="grid grid-cols-3 gap-3 text-sm cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                   <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
-                    <p class="text-gray-500 text-xs uppercase mb-1">{{ t('activity.eventsAttended') }}</p>
-                    <p><span class="font-bold text-gray-100 text-lg">{{ player.total_events }}</span> <span class="text-gray-500">/ {{ totalEvents }}</span></p>
+                    <p class="text-gray-500 text-[10px] uppercase mb-1 truncate">{{ t('activity.eventsAttended') }}</p>
+                    <p><span class="font-bold text-gray-100 text-base">{{ player.total_events }}</span> <span class="text-gray-500 text-xs">/ {{ totalEvents }}</span></p>
                   </div>
                   <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
-                    <p class="text-gray-500 text-xs uppercase mb-1">{{ t('activity.attendance') }}</p>
+                    <p class="text-gray-500 text-[10px] uppercase mb-1 truncate">{{ t('activity.attendance') }}</p>
                     <div class="flex items-center gap-2 mt-1">
-                      <span class="font-mono text-base font-bold" :class="{'text-green-400': (player.total_events / totalEvents) >= 0.8, 'text-yellow-400': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'text-red-400': (player.total_events / totalEvents) < 0.5}">
+                      <span class="font-mono text-sm font-bold" :class="{'text-green-400': (player.total_events / totalEvents) >= 0.8, 'text-yellow-400': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'text-red-400': (player.total_events / totalEvents) < 0.5}">
                         {{ totalEvents ? Math.round((player.total_events / totalEvents) * 100) : 0 }}%
                       </span>
                     </div>
+                  </div>
+                  <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
+                    <p class="text-gray-500 text-[10px] uppercase mb-1 truncate">{{ t('activity.weeklyActivity') }}</p>
+                    <p><span class="font-bold text-blue-400 text-base">{{ player.weekly_game_activity || 0 }}</span></p>
                   </div>
                 </div>
                 
                 <!-- Expanded Mobile View -->
                 <div v-if="expandedPlayers.has(player.player_id)" class="mt-4 pt-4 border-t border-gray-700 animate-fade-in">
+                   
+                   <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.weeklyActivityHistory') }}</h4>
+                   <div class="space-y-2 mb-4">
+                     <div v-for="wa in player.weekly_activity_history" :key="wa.week_id" class="bg-gray-900/50 border border-gray-700 rounded p-3 flex justify-between items-center gap-2">
+                        <p class="text-sm font-medium text-gray-200 truncate">{{ wa.week_id }}</p>
+                        <div class="flex items-center gap-2 shrink-0">
+                          <p class="text-sm font-bold text-blue-400">{{ wa.score }}</p>
+                          <p class="text-[10px] text-gray-500 font-mono">{{ new Date(wa.reported_at).toLocaleDateString() }}</p>
+                        </div>
+                     </div>
+                     <p v-if="!player.weekly_activity_history || player.weekly_activity_history.length === 0" class="text-gray-500 italic text-xs">{{ t('activity.noActivity') }}</p>
+                   </div>
+
                    <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.eventsAttended') }}</h4>
                    <div class="space-y-2">
                      <div v-for="ev in player.events" :key="ev.event_id" class="bg-gray-900/50 border border-gray-700 rounded p-3 flex justify-between items-center gap-2">
                         <p class="text-sm font-medium text-gray-200 truncate">{{ ev.event_name }}</p>
                         <p class="text-xs text-gray-500 font-mono shrink-0">{{ new Date(ev.date).toLocaleDateString() }}</p>
                      </div>
+                     <p v-if="!player.events || player.events.length === 0" class="text-gray-500 italic text-xs">{{ t('activity.noActivity') }}</p>
                    </div>
                 </div>
               </div>
@@ -466,6 +589,12 @@ watch([fromDate, toDate], () => {
                     <span v-if="sortKey === 'attendance'" class="text-blue-400 ml-1">{{ sortDesc ? '↓' : '↑' }}</span>
                   </div>
                 </th>
+                <th class="p-4 cursor-pointer hover:text-white align-top pt-5" @click="sortBy('weekly_game_activity')">
+                  <div class="flex items-center w-max">
+                    {{ t('activity.weeklyActivity') }}
+                    <span v-if="sortKey === 'weekly_game_activity'" class="text-blue-400 ml-1">{{ sortDesc ? '↓' : '↑' }}</span>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -481,6 +610,7 @@ watch([fromDate, toDate], () => {
                     <div class="flex items-center gap-2">
                       <svg class="w-4 h-4 text-gray-500 transition-transform" :class="{'rotate-180': expandedPlayers.has(player.player_id)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                       {{ player.player_name }}
+                      <svg v-if="!player.has_current_weekly_activity" class="w-4 h-4 text-red-500" title="Missing Weekly Activity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     </div>
                   </td>
                   <td class="p-4 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
@@ -499,26 +629,115 @@ watch([fromDate, toDate], () => {
                       </div>
                     </div>
                   </td>
+                  <td class="p-4 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
+                    <span class="font-bold text-blue-400 font-mono">{{ player.weekly_game_activity || 0 }}</span>
+                  </td>
                 </tr>
                 <!-- Expanded Player Details -->
                 <tr v-if="expandedPlayers.has(player.player_id)" class="bg-gray-900/50 border-b border-gray-700/50">
-                  <td colspan="4" class="p-4">
-                    <div class="pl-10">
-                      <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.eventsAttended') }}</h4>
-                      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                        <div v-for="ev in player.events" :key="ev.event_id" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 flex justify-between items-center gap-2">
-                          <p class="text-sm font-medium text-gray-200 truncate" :title="ev.event_name">{{ ev.event_name }}</p>
-                          <p class="text-xs text-gray-500 font-mono shrink-0">{{ new Date(ev.date).toLocaleDateString() }}</p>
+                  <td colspan="5" class="p-4">
+                    <div class="pl-10 space-y-6">
+                      
+                      <!-- Weekly Activity History -->
+                      <div>
+                        <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.weeklyActivityHistory') }}</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                          <div v-for="wa in player.weekly_activity_history" :key="wa.week_id" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 flex justify-between items-center gap-2">
+                            <p class="text-sm font-medium text-gray-200 truncate">{{ wa.week_id }}</p>
+                            <div class="flex items-center gap-3 shrink-0">
+                              <p class="text-sm font-bold text-blue-400">{{ wa.score }}</p>
+                              <p class="text-xs text-gray-500 font-mono">{{ new Date(wa.reported_at).toLocaleDateString() }}</p>
+                            </div>
+                          </div>
                         </div>
+                        <p v-if="!player.weekly_activity_history || player.weekly_activity_history.length === 0" class="text-gray-500 italic text-xs mt-2">{{ t('activity.noActivity') }}</p>
                       </div>
+
+                      <!-- Events Attended -->
+                      <div>
+                        <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.eventsAttended') }}</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                          <div v-for="ev in player.events" :key="ev.event_id" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 flex justify-between items-center gap-2">
+                            <p class="text-sm font-medium text-gray-200 truncate" :title="ev.event_name">{{ ev.event_name }}</p>
+                            <p class="text-xs text-gray-500 font-mono shrink-0">{{ new Date(ev.date).toLocaleDateString() }}</p>
+                          </div>
+                        </div>
+                        <p v-if="!player.events || player.events.length === 0" class="text-gray-500 italic text-xs mt-2">{{ t('activity.noActivity') }}</p>
+                      </div>
+
                     </div>
                   </td>
                 </tr>
               </template>
               <tr v-if="sortedActivities.length === 0">
-                <td colspan="4" class="p-8 text-center text-gray-500 italic">{{ t('activity.noActivity') }}</td>
+                <td colspan="5" class="p-8 text-center text-gray-500 italic">{{ t('activity.noActivity') }}</td>
               </tr>
             </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ELIGIBLE FOR DROP VIEW -->
+      <div v-if="activeTab === 'eligible'" class="space-y-6 animate-fade-in">
+        <div class="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
+          <div class="p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center flex-wrap gap-4">
+             <div>
+               <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.eligibleForDrop') }}</h2>
+               <p class="text-xs text-gray-400 mt-1">{{ t('activity.eligibleRule').replace('{events}', dropConfig.min_events.toString()).replace('{score}', dropConfig.min_weekly_activity.toString()) }}</p>
+             </div>
+             <div class="flex items-center gap-2">
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek') }}:</label>
+               <select v-model="targetWeekId" @change="fetchActivity" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
+                 <option value="">Current Week</option>
+                 <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
+               </select>
+             </div>
+          </div>
+          
+          <!-- Mobile Deck (Cards) -->
+          <div class="md:hidden p-4 space-y-4">
+            <div v-for="player in [...sortedActivities].sort((a,b) => (b.is_eligible_for_drop ? 1 : 0) - (a.is_eligible_for_drop ? 1 : 0))" :key="player.player_id" class="bg-gray-800 border rounded-lg p-4 transition-colors" :class="player.is_eligible_for_drop ? 'border-green-500/50 bg-green-900/10' : 'border-red-500/30'">
+              <div class="flex justify-between items-center mb-3">
+                <span class="font-bold text-gray-100 text-lg truncate">{{ player.player_name }}</span>
+                <span v-if="player.is_eligible_for_drop" class="bg-green-900 text-green-400 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> {{ t('activity.eligible') }}</span>
+                <span v-else class="bg-red-900 text-red-400 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> {{ t('activity.notEligible') }}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
+                  <p class="text-gray-500 text-[10px] uppercase mb-1">{{ t('activity.recentPvp') }}</p>
+                  <p class="font-bold text-gray-100 text-base" :class="{'text-green-400': player.recent_pvp_events >= dropConfig.min_events}">{{ player.recent_pvp_events || 0 }}</p>
+                </div>
+                <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
+                  <p class="text-gray-500 text-[10px] uppercase mb-1">{{ t('activity.weeklyScore') }}</p>
+                  <p class="font-bold text-gray-100 text-base" :class="{'text-green-400': player.weekly_game_activity > dropConfig.min_weekly_activity}">{{ player.weekly_game_activity || 0 }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Desktop Table (Hidden on Mobile) -->
+          <div class="hidden md:block overflow-x-auto">
+            <table class="w-full text-left text-gray-300">
+              <thead class="bg-gray-900 text-gray-400 uppercase text-xs tracking-wider">
+                <tr>
+                  <th class="p-4">{{ t('activity.playerName') }}</th>
+                  <th class="p-4">{{ t('activity.recentPvp') }}</th>
+                  <th class="p-4">{{ t('activity.weeklyScore') }}</th>
+                  <th class="p-4">{{ t('activity.status') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="player in [...sortedActivities].sort((a,b) => (b.is_eligible_for_drop ? 1 : 0) - (a.is_eligible_for_drop ? 1 : 0))" :key="player.player_id" class="border-b border-gray-700/50 hover:bg-gray-750 transition-colors">
+                  <td class="p-4 font-medium text-gray-100">{{ player.player_name }}</td>
+                  <td class="p-4 font-bold" :class="{'text-green-400': player.recent_pvp_events >= dropConfig.min_events}">{{ player.recent_pvp_events || 0 }}</td>
+                  <td class="p-4 font-bold font-mono" :class="{'text-green-400': player.weekly_game_activity > dropConfig.min_weekly_activity}">{{ player.weekly_game_activity || 0 }}</td>
+                  <td class="p-4">
+                    <span v-if="player.is_eligible_for_drop" class="bg-green-900/50 text-green-400 px-3 py-1 rounded text-sm font-bold inline-flex items-center gap-1 border border-green-800"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> {{ t('activity.eligible') }}</span>
+                    <span v-else class="bg-red-900/50 text-red-400 px-3 py-1 rounded text-sm font-bold inline-flex items-center gap-1 border border-red-800"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> {{ t('activity.notEligible') }}</span>
+                  </td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </div>

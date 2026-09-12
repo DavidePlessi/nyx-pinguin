@@ -25,21 +25,33 @@ async def get_guild_drops_config(guild_id: str, admin = Depends(get_current_admi
         raise HTTPException(status_code=404, detail="Guild config non trovata")
     return {"member_role_id": config.member_role_id, "drop_channel_id": config.drop_channel_id}
 
+from pydantic import BaseModel
+
+class GuildConfigUpdate(BaseModel):
+    member_role_id: Optional[str] = None
+    drop_channel_id: Optional[str] = None
+    raid_helper_api_key: Optional[str] = None
+    raid_helper_channel_id: Optional[str] = None
+    weekly_activity_enabled: Optional[bool] = None
+    weekly_activity_channel_id: Optional[str] = None
+    weekly_activity_day: Optional[int] = None
+    weekly_activity_announce_time: Optional[str] = None
+    weekly_activity_reminder_time: Optional[str] = None
+    drop_min_events: Optional[int] = None
+    drop_min_weekly_activity: Optional[int] = None
+
 @router.post("/guilds/{guild_id}/config")
-async def set_guild_drops_config(guild_id: str, member_role_id: Optional[str] = None, drop_channel_id: Optional[str] = None, raid_helper_api_key: Optional[str] = None, raid_helper_channel_id: Optional[str] = None, admin = Depends(get_current_admin)):
+async def set_guild_drops_config(guild_id: str, payload: GuildConfigUpdate, admin = Depends(get_current_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
         config = GuildConfig(guild_id=guild_id)
-    if member_role_id is not None:
-        config.member_role_id = member_role_id
-    if drop_channel_id is not None:
-        config.drop_channel_id = drop_channel_id
-    if raid_helper_api_key is not None:
-        config.raid_helper_api_key = raid_helper_api_key
-    if raid_helper_channel_id is not None:
-        config.raid_helper_channel_id = raid_helper_channel_id
+        
+    update_data = payload.dict(exclude_unset=True)
+    for k, v in update_data.items():
+        setattr(config, k, v)
+        
     await config.save()
-    return {"status": "success", "member_role_id": config.member_role_id, "drop_channel_id": config.drop_channel_id, "raid_helper_api_key": config.raid_helper_api_key, "raid_helper_channel_id": config.raid_helper_channel_id}
+    return {"status": "success"}
 
 # --- Builds ---
 

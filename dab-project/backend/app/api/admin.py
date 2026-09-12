@@ -98,7 +98,23 @@ class GuildCreateSchema(BaseModel):
 @router.get("/guilds")
 async def get_all_guilds(admin: AdminUser = Depends(require_admin)):
     guilds = await GuildConfig.find_all().to_list()
-    return [{"guild_id": g.guild_id, "name": g.name, "member_role_id": g.member_role_id, "drop_channel_id": g.drop_channel_id} for g in guilds]
+    return [
+        {
+            "guild_id": g.guild_id,
+            "name": g.name,
+            "member_role_id": g.member_role_id,
+            "drop_channel_id": g.drop_channel_id,
+            "raid_helper_api_key": getattr(g, "raid_helper_api_key", None),
+            "raid_helper_channel_id": getattr(g, "raid_helper_channel_id", None),
+            "weekly_activity_enabled": getattr(g, "weekly_activity_enabled", False),
+            "weekly_activity_channel_id": getattr(g, "weekly_activity_channel_id", None),
+            "weekly_activity_day": getattr(g, "weekly_activity_day", 3),
+            "weekly_activity_announce_time": getattr(g, "weekly_activity_announce_time", "15:00"),
+            "weekly_activity_reminder_time": getattr(g, "weekly_activity_reminder_time", "21:00"),
+            "drop_min_events": getattr(g, "drop_min_events", 2),
+            "drop_min_weekly_activity": getattr(g, "drop_min_weekly_activity", 5500)
+        } for g in guilds
+    ]
 
 @router.post("/guilds")
 async def create_guild(data: GuildCreateSchema, admin: AdminUser = Depends(require_admin)):

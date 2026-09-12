@@ -320,6 +320,16 @@
     "participants": "Teilnehmer",
     "noParticipants": "Keine gültigen Teilnehmer für dieses Event.",
     "forceSync": "Jetzt Synchronisieren",
-    "syncing": "Wird synchronisiert..."
+    "syncing": "Wird synchronisiert...",
+    "weeklyActivity": "Wöchentliche Aktivität",
+    "weeklyActivityHistory": "Verlauf der wöchentlichen Aktivität",
+    "eligibleForDrop": "Berechtigt für Drop",
+    "eligibleRule": "Regel: {events}+ PVP-Events letzte Woche ODER Wochenpunktzahl > {score}",
+    "recentPvp": "Letzte PVP (Letzte Woche)",
+    "weeklyScore": "Wochenpunktzahl",
+    "status": "Status",
+    "eligible": "Berechtigt",
+    "notEligible": "Nicht Berechtigt",
+    "targetWeek": "Woche auswählen"
   }
 }

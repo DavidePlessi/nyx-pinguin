@@ -98,7 +98,20 @@ async def fetch_and_store_raid_helper_activity(guild: GuildConfig):
     except Exception as e:
         logger.error(f"Exception during Raid-Helper sync for guild {guild_id}: {e}")
 
+from app.models.models import BotLog
+
 async def sync_all_guilds_activity():
-    guilds = await GuildConfig.find(GuildConfig.raid_helper_api_key != None).to_list()
-    for guild in guilds:
-        await fetch_and_store_raid_helper_activity(guild)
+    try:
+        await BotLog(level="info", message="Starting daily Raid Helper activity sync...").save()
+        guilds = await GuildConfig.find(GuildConfig.raid_helper_api_key != None).to_list()
+        count = 0
+        for guild in guilds:
+            if guild.raid_helper_channel_id:
+                try:
+                    await fetch_and_store_raid_helper_activity(guild)
+                    count += 1
+                except Exception as e:
+                    await BotLog(level="error", message=f"Raid Helper sync failed for {guild.name}: {e}").save()
+        await BotLog(level="info", message=f"Daily Raid Helper sync completed for {count} guilds.").save()
+    except Exception as e:
+        await BotLog(level="error", message=f"Daily Raid Helper sync failed critically: {e}").save()

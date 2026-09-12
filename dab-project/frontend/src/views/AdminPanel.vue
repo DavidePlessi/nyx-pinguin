@@ -132,18 +132,17 @@ const fetchInstances = async () => {
 }
 
 
-const saveGuildConfig = async () => {
-  if (!guildConfigState.value.guild_id) return
+const saveGuildConfig = async (g: any) => {
+  if (!g.guild_id) return
   isLoading.value = true
   try {
-    let url = `${BACKEND_URL}/api/drops/guilds/${guildConfigState.value.guild_id}/config?`
-    if (guildConfigState.value.member_role_id) url += `member_role_id=${guildConfigState.value.member_role_id}&`
-    if (guildConfigState.value.drop_channel_id) url += `drop_channel_id=${guildConfigState.value.drop_channel_id}&`
-    if (guildConfigState.value.raid_helper_api_key) url += `raid_helper_api_key=${guildConfigState.value.raid_helper_api_key}&`
-    if (guildConfigState.value.raid_helper_channel_id) url += `raid_helper_channel_id=${guildConfigState.value.raid_helper_channel_id}`
-    const res = await fetch(url, {
+    const res = await fetch(`${BACKEND_URL}/api/drops/guilds/${g.guild_id}/config`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+      headers: { 
+        'Authorization': `Bearer ${sessionToken.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(g)
     })
     if (res.ok) {
       await showAlert(t('dashboard.successSaveMessage'), "SUCCESS")
@@ -627,6 +626,7 @@ onUnmounted(() => {
               <th class="p-4 border-b border-gray-800">Drop Channel ID</th>
               <th class="p-4 border-b border-gray-800">Raid Helper API Key</th>
               <th class="p-4 border-b border-gray-800">Raid Helper Channel ID</th>
+              <th class="p-4 border-b border-gray-800">Weekly Activity Settings</th>
               <th class="p-4 border-b border-gray-800 text-right">{{ t('adminPanel.actions') }}</th>
             </tr>
           </thead>
@@ -654,9 +654,38 @@ onUnmounted(() => {
               <td class="p-4 text-gray-400">
                 <input v-model="g.raid_helper_channel_id" type="text" placeholder="PVP Channel ID" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white mb-2">
               </td>
-              <td class="p-4 text-right whitespace-nowrap">
+              <td class="p-4 text-gray-400">
+                <div class="flex flex-col gap-2">
+                  <label class="flex items-center gap-2 text-xs">
+                    <input type="checkbox" v-model="g.weekly_activity_enabled" class="rounded bg-gray-900 border-gray-700 text-cyber-cyan focus:ring-cyber-cyan"> Enable Weekly Activity
+                  </label>
+                  <input v-model="g.weekly_activity_channel_id" type="text" placeholder="Announcement Channel ID" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white">
+                  <select v-model="g.weekly_activity_day" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white">
+                    <option :value="0">Monday</option>
+                    <option :value="1">Tuesday</option>
+                    <option :value="2">Wednesday</option>
+                    <option :value="3">Thursday</option>
+                    <option :value="4">Friday</option>
+                    <option :value="5">Saturday</option>
+                    <option :value="6">Sunday</option>
+                  </select>
+                  <div class="flex gap-2">
+                    <input v-model="g.weekly_activity_announce_time" type="time" title="Announcement Time" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-24 focus:border-cyber-cyan focus:outline-none text-white">
+                    <input v-model="g.weekly_activity_reminder_time" type="time" title="Reminder Time" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-24 focus:border-cyber-cyan focus:outline-none text-white">
+                  </div>
+                  <div class="flex gap-2 items-center text-xs mt-1">
+                    <input v-model.number="g.drop_min_events" type="number" title="Drop: Min Events" placeholder="Min Ev." class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-16 focus:border-cyber-cyan focus:outline-none text-white">
+                    <span>Min PVP Ev.</span>
+                  </div>
+                  <div class="flex gap-2 items-center text-xs">
+                    <input v-model.number="g.drop_min_weekly_activity" type="number" title="Drop: Min Weekly Activity" placeholder="Min Score" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-20 focus:border-cyber-cyan focus:outline-none text-white">
+                    <span>Min W. Score</span>
+                  </div>
+                </div>
+              </td>
+              <td class="p-4 text-right whitespace-nowrap align-top">
                 <button 
-                  @click="guildConfigState.guild_id = g.guild_id; guildConfigState.member_role_id = g.member_role_id; guildConfigState.drop_channel_id = g.drop_channel_id; guildConfigState.raid_helper_api_key = g.raid_helper_api_key; guildConfigState.raid_helper_channel_id = g.raid_helper_channel_id; saveGuildConfig()" 
+                  @click="saveGuildConfig(g)" 
                   class="ml-2 text-xs bg-gray-800 hover:bg-gray-700 text-cyber-cyan px-2 py-1.5 rounded transition-colors"
                 >
                   Salva Config

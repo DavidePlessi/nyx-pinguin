@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
-from models import DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage, SkillCore
+from models import DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage, SkillCore, WeeklyGameActivity, BotLog
 from datetime import datetime
 import json
 import urllib.parse
@@ -30,7 +30,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         # Connessione DB
         client = AsyncIOMotorClient(MONGO_URI)
-        await init_beanie(database=client[MONGO_DB_NAME], document_models=[DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage])
+        await init_beanie(database=client[MONGO_DB_NAME], document_models=[DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage, WeeklyGameActivity, BotLog])
         # Sync slash commands
         if TEST_GUILD_ID:
             guild = discord.Object(id=int(TEST_GUILD_ID))
@@ -43,6 +43,9 @@ class MyBot(commands.Bot):
             
         self.add_view(CandidateButton())
         self.add_view(LucentCandidateButton())
+
+        # Load cogs
+        await self.load_extension('cogs.weekly_activity')
 
 bot = MyBot()
 
