@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from app.api.oauth import get_current_user, get_current_admin, get_current_guild_admin
 from app.models.guild_drops import DropUser, Build, BuildSlots, DropHistory, DropPoll
 from app.models.models import GuildConfig
@@ -23,16 +23,23 @@ async def get_guild_drops_config(guild_id: str, admin = Depends(get_current_admi
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
         raise HTTPException(status_code=404, detail="Guild config non trovata")
-    return {"member_role_id": config.member_role_id}
+    return {"member_role_id": config.member_role_id, "drop_channel_id": config.drop_channel_id}
 
 @router.post("/guilds/{guild_id}/config")
-async def set_guild_drops_config(guild_id: str, member_role_id: str, admin = Depends(get_current_admin)):
+async def set_guild_drops_config(guild_id: str, member_role_id: Optional[str] = None, drop_channel_id: Optional[str] = None, raid_helper_api_key: Optional[str] = None, raid_helper_channel_id: Optional[str] = None, admin = Depends(get_current_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
         config = GuildConfig(guild_id=guild_id)
-    config.member_role_id = member_role_id
+    if member_role_id is not None:
+        config.member_role_id = member_role_id
+    if drop_channel_id is not None:
+        config.drop_channel_id = drop_channel_id
+    if raid_helper_api_key is not None:
+        config.raid_helper_api_key = raid_helper_api_key
+    if raid_helper_channel_id is not None:
+        config.raid_helper_channel_id = raid_helper_channel_id
     await config.save()
-    return {"status": "success", "member_role_id": config.member_role_id}
+    return {"status": "success", "member_role_id": config.member_role_id, "drop_channel_id": config.drop_channel_id, "raid_helper_api_key": config.raid_helper_api_key, "raid_helper_channel_id": config.raid_helper_channel_id}
 
 # --- Builds ---
 
@@ -43,11 +50,13 @@ async def get_my_build(guild_id: str, user: DropUser = Depends(get_current_user)
 
 @router.post("/guilds/{guild_id}/builds")
 async def save_my_build(guild_id: str, payload: dict, user: DropUser = Depends(get_current_user)):
-    from app.models.guild_drops import WeaponClassMapping
+    from app.models.guild_drops import WeaponClassMapping, BuildSkillcores
     # Validate payload
     try:
         slots_data = payload.get("slots", {})
         build_slots = BuildSlots(**slots_data)
+        skillcores_data = payload.get("skillcores", {})
+        build_skillcores = BuildSkillcores(**skillcores_data)
         character_name = payload.get("character_name")
         play_style = payload.get("play_style")
         questlog_url = payload.get("questlog_url")
@@ -77,6 +86,7 @@ async def save_my_build(guild_id: str, payload: dict, user: DropUser = Depends(g
             user_id=user.discord_id, 
             guild_id=guild_id, 
             slots=build_slots,
+            skillcores=build_skillcores,
             character_name=character_name,
             character_class=computed_class,
             play_style=play_style,
@@ -84,6 +94,7 @@ async def save_my_build(guild_id: str, payload: dict, user: DropUser = Depends(g
         )
     else:
         build.slots = build_slots
+        build.skillcores = build_skillcores
         if character_name is not None: build.character_name = character_name
         build.character_class = computed_class
         if play_style is not None: build.play_style = play_style
@@ -274,14 +285,14 @@ async def assign_poll(guild_id: str, poll_id: str, payload: AssignPayload, admin
         all_participants = [f"<@{c}>" for c in poll.candidates]
         
         embed = {
-            "title": f"🎉 Drop Assegnato!",
-            "description": f"L'oggetto **{poll.item_name}** è stato assegnato a {winner_mention}.",
+            "title": f"🎉 Drop Assigned!",
+            "description": f"The item **{poll.item_name}** has been assigned to {winner_mention}.",
             "color": 3066993,
             "fields": []
         }
         if all_participants:
             embed["fields"].append({
-                "name": "Partecipanti al Drop",
+                "name": "Drop Participants",
                 "value": " ".join(all_participants)
             })
             
@@ -300,8 +311,11 @@ async def assign_poll(guild_id: str, poll_id: str, payload: AssignPayload, admin
                     )
                 
                 # 2. Invia il messaggio di assegnazione
+                config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+                dest_channel = config.drop_channel_id if config and config.drop_channel_id else poll.channel_id
+                
                 res = await client.post(
-                    f"https://discord.com/api/v10/channels/{poll.channel_id}/messages",
+                    f"https://discord.com/api/v10/channels/{dest_channel}/messages",
                     json={"embeds": [embed]},
                     headers=headers
                 )
@@ -348,12 +362,12 @@ async def assign_lucent_poll(guild_id: str, poll_id: str, payload: AssignLucentP
             username = user_doc.username if user_doc else c_id
             fields.append({
                 "name": username,
-                "value": f"<@{c_id}>\nRichiesti: {req_amt}\nRicevuti: {assigned_amt}"
+                "value": f"<@{c_id}>\nRequested: {req_amt}\nReceived: {assigned_amt}"
             })
             
         embed = {
-            "title": "💰 Assegnazione Lucent Completata!",
-            "description": f"I lucent sono stati distribuiti. Totale disponibile: **{getattr(poll, 'amount', 0)}**",
+            "title": "💰 Lucent Assignment Completed!",
+            "description": f"Lucent have been distributed. Total available: **{getattr(poll, 'amount', 0)}**",
             "color": 3066993,
             "fields": fields
         }
@@ -372,8 +386,11 @@ async def assign_lucent_poll(guild_id: str, poll_id: str, payload: AssignLucentP
                         headers=headers
                     )
                 # 2. Invia notifica
+                config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+                dest_channel = config.drop_channel_id if config and config.drop_channel_id else poll.channel_id
+                
                 await client.post(
-                    f"https://discord.com/api/v10/channels/{poll.channel_id}/messages",
+                    f"https://discord.com/api/v10/channels/{dest_channel}/messages",
                     json={"embeds": [embed]},
                     headers=headers
                 )
@@ -396,8 +413,8 @@ async def cancel_poll(guild_id: str, poll_id: str, admin = Depends(get_current_g
     
     if poll.channel_id and settings.GUILD_BOT_TOKEN:
         embed = {
-            "title": "🛑 Drop Annullato",
-            "description": f"Il sondaggio per **{poll.item_name}** è stato annullato dagli admin senza assegnazioni.",
+            "title": "🛑 Drop Canceled",
+            "description": f"The poll for **{poll.item_name}** has been canceled by admins without assignments.",
             "color": 15158332
         }
         async with httpx.AsyncClient() as client:
@@ -414,8 +431,11 @@ async def cancel_poll(guild_id: str, poll_id: str, admin = Depends(get_current_g
                         headers=headers
                     )
                 # 2. Invia notifica di annullamento
+                config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+                dest_channel = config.drop_channel_id if config and config.drop_channel_id else poll.channel_id
+                
                 await client.post(
-                    f"https://discord.com/api/v10/channels/{poll.channel_id}/messages",
+                    f"https://discord.com/api/v10/channels/{dest_channel}/messages",
                     json={"embeds": [embed]},
                     headers=headers
                 )
@@ -423,3 +443,23 @@ async def cancel_poll(guild_id: str, poll_id: str, admin = Depends(get_current_g
                 pass
             
     return {"status": "success"}
+
+@router.get("/skillcores")
+async def get_skillcores(query: str, slot: str = Query(None), weapons: List[str] = Query(default=[])):
+    from app.models.guild_drops import SkillCore
+    import re
+    # Costruisci la query
+    search_query: dict = {"name": {"$regex": query, "$options": "i"}}
+    if slot:
+        search_query["slot"] = slot
+    if weapons:
+        search_query["weapon"] = {"$in": weapons}
+
+    cores = await SkillCore.find(search_query).limit(25).to_list()
+    # Ritorna id stringified
+    results = []
+    for c in cores:
+        doc = c.model_dump()
+        doc["id"] = str(c.id)
+        results.append(doc)
+    return results

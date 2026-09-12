@@ -155,9 +155,19 @@ async function handleMusicCommand(interaction) {
 
     const command = interaction.commandName;
     const query = interaction.options?.getString('query');
-    const permissions = userVoiceChannel.permissionsFor(selectedBot.user);
     
-    if (!permissions.has('Connect') || !permissions.has('Speak')) {
+    let botMember = interaction.guild.members.cache.get(selectedBot.user.id);
+    if (!botMember) {
+        try {
+            botMember = await interaction.guild.members.fetch(selectedBot.user.id);
+        } catch (err) {
+            console.error("Errore nel fetch del membro bot:", err);
+        }
+    }
+    
+    const permissions = botMember ? userVoiceChannel.permissionsFor(botMember) : null;
+    
+    if (!permissions || !permissions.has('Connect') || !permissions.has('Speak')) {
         return interaction.followUp(`❌ Il pinguino <@${selectedBot.user.id}> non ha i permessi per il tuo canale.`);
     }
 
@@ -483,7 +493,16 @@ async function handleIpc(data) {
                     const guild = selectedBot.guilds.cache.get(guildId);
                     const vc = guild?.channels.cache.get(data.voice_channel_id);
                     if (vc) {
-                        const permissions = vc.permissionsFor(selectedBot.user);
+                        let botMember = guild.members.cache.get(selectedBot.user.id);
+                        if (!botMember) {
+                            try {
+                                botMember = await guild.members.fetch(selectedBot.user.id);
+                            } catch (e) {
+                                console.error(`[IPC] Impossibile fetchare il membro per il bot ${selectedBot.user.id}`, e);
+                            }
+                        }
+                        const permissions = botMember ? vc.permissionsFor(botMember) : null;
+                        
                         if (!permissions?.has('ViewChannel') || !permissions?.has('Connect') || !permissions?.has('Speak')) {
                             console.error(`[IPC] Il bot ${selectedBot.user.id} non ha i permessi necessari (ViewChannel, Connect, Speak) per il canale ${vc.name}`);
                             return;

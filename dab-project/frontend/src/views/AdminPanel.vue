@@ -23,7 +23,10 @@ const apiInstances = ref({
 
 const guildConfigState = ref({
   guild_id: '',
-  member_role_id: ''
+  member_role_id: '',
+  drop_channel_id: '',
+  raid_helper_api_key: '',
+  raid_helper_channel_id: ''
 })
 
 const allAppGuilds = ref<any[]>([])
@@ -130,10 +133,15 @@ const fetchInstances = async () => {
 
 
 const saveGuildConfig = async () => {
-  if (!guildConfigState.value.guild_id || !guildConfigState.value.member_role_id) return
+  if (!guildConfigState.value.guild_id) return
   isLoading.value = true
   try {
-    const res = await fetch(`${BACKEND_URL}/api/drops/guilds/${guildConfigState.value.guild_id}/config?member_role_id=${guildConfigState.value.member_role_id}`, {
+    let url = `${BACKEND_URL}/api/drops/guilds/${guildConfigState.value.guild_id}/config?`
+    if (guildConfigState.value.member_role_id) url += `member_role_id=${guildConfigState.value.member_role_id}&`
+    if (guildConfigState.value.drop_channel_id) url += `drop_channel_id=${guildConfigState.value.drop_channel_id}&`
+    if (guildConfigState.value.raid_helper_api_key) url += `raid_helper_api_key=${guildConfigState.value.raid_helper_api_key}&`
+    if (guildConfigState.value.raid_helper_channel_id) url += `raid_helper_channel_id=${guildConfigState.value.raid_helper_channel_id}`
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${sessionToken.value}` }
     })
@@ -616,6 +624,9 @@ onUnmounted(() => {
               <th class="p-4 border-b border-gray-800">Nome Gilda</th>
               <th class="p-4 border-b border-gray-800">Guild ID</th>
               <th class="p-4 border-b border-gray-800">{{ t('adminPanel.memberRoleId') }}</th>
+              <th class="p-4 border-b border-gray-800">Drop Channel ID</th>
+              <th class="p-4 border-b border-gray-800">Raid Helper API Key</th>
+              <th class="p-4 border-b border-gray-800">Raid Helper Channel ID</th>
               <th class="p-4 border-b border-gray-800 text-right">{{ t('adminPanel.actions') }}</th>
             </tr>
           </thead>
@@ -632,15 +643,24 @@ onUnmounted(() => {
               </td>
               <td class="p-4 font-mono text-gray-400 text-sm whitespace-nowrap">{{ g.guild_id }}</td>
               <td class="p-4 text-gray-400">
-                <input v-model="g.member_role_id" type="text" placeholder="ID Ruolo Discord" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white">
-                <button 
-                  @click="guildConfigState.guild_id = g.guild_id; guildConfigState.member_role_id = g.member_role_id; saveGuildConfig()" 
-                  class="ml-2 text-xs bg-gray-800 hover:bg-gray-700 text-cyber-cyan px-2 py-1.5 rounded transition-colors"
-                >
-                  {{ t('adminPanel.saveRole') }}
-                </button>
+                <input v-model="g.member_role_id" type="text" placeholder="ID Ruolo Discord" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white mb-2">
+              </td>
+              <td class="p-4 text-gray-400">
+                <input v-model="g.drop_channel_id" type="text" placeholder="Canale Assegnazione Drop" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white mb-2">
+              </td>
+              <td class="p-4 text-gray-400">
+                <input v-model="g.raid_helper_api_key" type="password" placeholder="Raid Helper API Key" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white mb-2">
+              </td>
+              <td class="p-4 text-gray-400">
+                <input v-model="g.raid_helper_channel_id" type="text" placeholder="PVP Channel ID" class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono w-48 focus:border-cyber-cyan focus:outline-none text-white mb-2">
               </td>
               <td class="p-4 text-right whitespace-nowrap">
+                <button 
+                  @click="guildConfigState.guild_id = g.guild_id; guildConfigState.member_role_id = g.member_role_id; guildConfigState.drop_channel_id = g.drop_channel_id; guildConfigState.raid_helper_api_key = g.raid_helper_api_key; guildConfigState.raid_helper_channel_id = g.raid_helper_channel_id; saveGuildConfig()" 
+                  class="ml-2 text-xs bg-gray-800 hover:bg-gray-700 text-cyber-cyan px-2 py-1.5 rounded transition-colors"
+                >
+                  Salva Config
+                </button>
                 <button 
                   @click="deleteAppGuild(g.guild_id)" 
                   class="text-xs bg-red-900/40 hover:bg-red-800 text-red-200 px-2 py-1 rounded transition-colors"

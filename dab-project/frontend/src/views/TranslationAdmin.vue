@@ -191,6 +191,16 @@ const goBack = () => {
         </div>
         
         <div class="border-t border-gray-800 pt-6">
+          <h3 class="font-rajdhani text-xl font-bold text-cyber-cyan mb-4">Motore di Traduzione (API)</h3>
+          <p class="text-sm text-gray-400 font-mono mb-4">Scegli quale servizio utilizzare per le traduzioni. Assicurati di aver configurato le API Key nel file .env se scegli servizi a pagamento o con registrazione.</p>
+          <select v-model="config.translation_service" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white focus:border-cyber-purple focus:outline-none focus:ring-1 focus:ring-cyber-purple transition-colors">
+            <option value="mymemory">MyMemory (Gratuito, illimitato)</option>
+            <option value="deepl">DeepL API Free (Migliore qualità, richiede DEEPL_AUTH_KEY)</option>
+            <option value="gemini">Google Gemini AI (Richiede GEMINI_API_KEY)</option>
+          </select>
+        </div>
+        
+        <div class="border-t border-gray-800 pt-6">
           <h3 class="font-rajdhani text-xl font-bold text-cyber-cyan mb-4">{{ t('translationAdmin.availableLangs') }}</h3>
           <p class="text-sm text-gray-400 font-mono mb-4">{{ t('translationAdmin.availableLangsDesc') }}</p>
           

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 
 import QuestlogItemSelector from '../components/QuestlogItemSelector.vue'
+import SkillcoreSelector from '../components/SkillcoreSelector.vue'
 import CyberModal from '../components/CyberModal.vue'
 import { t } from '../i18n'
 
@@ -31,6 +32,13 @@ const characterClass = computed(() => {
   return ''
 })
 
+const equippedWeapons = computed(() => {
+  const w = []
+  if (slots.value.main_weapon?.subCategory) w.push(slots.value.main_weapon.subCategory.toLowerCase())
+  if (slots.value.secondary_weapon?.subCategory) w.push(slots.value.secondary_weapon.subCategory.toLowerCase())
+  return w
+})
+
 const slots = ref<any>({
   main_weapon: null,
   secondary_weapon: null,
@@ -46,6 +54,12 @@ const slots = ref<any>({
   feet: null,
   head: null,
   chest: null
+})
+
+const skillcores = ref<any>({
+  weapon: null,
+  armor_1: null,
+  armor_2: null
 })
 
 const isLoading = ref(false)
@@ -113,6 +127,9 @@ const fetchMyBuild = async () => {
       const build = await res.json()
       if (build && build.slots) {
         slots.value = { ...slots.value, ...build.slots }
+        if (build.skillcores) {
+          skillcores.value = { ...skillcores.value, ...build.skillcores }
+        }
         buildStatus.value = build.status
         characterName.value = build.character_name || ''
         playStyle.value = build.play_style || ''
@@ -124,6 +141,7 @@ const fetchMyBuild = async () => {
         questlogUrl.value = ''
         // reset slots
         for(const k in slots.value) slots.value[k] = null
+        for(const k in skillcores.value) skillcores.value[k] = null
       }
     }
   } catch(e: any) {
@@ -145,6 +163,7 @@ const saveBuild = async (showSuccessAlert = true) => {
       },
       body: JSON.stringify({
         slots: slots.value,
+        skillcores: skillcores.value,
         character_name: characterName.value,
         play_style: playStyle.value,
         questlog_url: questlogUrl.value
@@ -352,6 +371,15 @@ onMounted(() => {
         <QuestlogItemSelector v-model="slots.ring_2" label="Ring 2" mainCategory="accessories" subCategory="ring" />
         <QuestlogItemSelector v-model="slots.belt" label="Belt" mainCategory="accessories" subCategory="belt" />
         <QuestlogItemSelector v-model="slots.brooch" label="Brooch" mainCategory="accessories" subCategory="brooch" />
+      </div>
+
+      <div class="mt-8 border-t border-gray-800 pt-6">
+        <h3 class="text-xl font-rajdhani font-bold text-gray-200 mb-6">Skillcores</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <SkillcoreSelector v-model="skillcores.weapon" label="Weapon Skillcore" slotCategory="Weapon" :weapons="equippedWeapons" />
+          <SkillcoreSelector v-model="skillcores.armor_1" label="Armor / Acc. Skillcore 1" slotCategory="Armor / Acc." :weapons="[]" />
+          <SkillcoreSelector v-model="skillcores.armor_2" label="Armor / Acc. Skillcore 2" slotCategory="Armor / Acc." :weapons="[]" />
+        </div>
       </div>
 
       <div class="mt-8 flex flex-col sm:flex-row justify-end gap-4 border-t border-gray-800 pt-6">

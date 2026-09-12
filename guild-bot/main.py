@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
-from models import DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage
+from models import DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage, SkillCore
 from datetime import datetime
 import json
 import urllib.parse
@@ -82,6 +82,21 @@ async def item_autocomplete(interaction: discord.Interaction, current: str) -> l
         print(f"Error autocomplete: {e}")
     return []
 
+async def skillcore_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    if len(current) < 2:
+        return []
+    try:
+        cores = await SkillCore.find({"name": {"$regex": current, "$options": "i"}}).limit(25).to_list()
+        choices = []
+        for c in cores:
+            val = f"{str(c.id)}|{c.name}|{c.slot}"[:100]
+            display = f"{c.name} [{c.slot}]"[:100]
+            choices.append(app_commands.Choice(name=display, value=val))
+        return choices
+    except Exception as e:
+        print(f"Error skillcore autocomplete: {e}")
+    return []
+
 # --- Views ---
 class CandidateButton(discord.ui.View):
     def __init__(self):
@@ -97,31 +112,31 @@ class CandidateButton(discord.ui.View):
                 poll = await DropPoll.find_one(DropPoll.channel_id == str(interaction.channel_id), DropPoll.status == "open").sort("-created_at")
                 
             if not poll:
-                await interaction.response.send_message("Sondaggio non trovato o scaduto.", ephemeral=True)
+                await interaction.response.send_message("Poll not found or expired.", ephemeral=True)
                 return
             
             if poll.status != "open":
-                await interaction.response.send_message("Il sondaggio è già chiuso.", ephemeral=True)
+                await interaction.response.send_message("The poll is already closed.", ephemeral=True)
                 return
                 
             discord_id = str(interaction.user.id)
             if discord_id in poll.candidates:
-                await interaction.response.send_message("Sei già candidato.", ephemeral=True)
+                await interaction.response.send_message("You are already a candidate.", ephemeral=True)
                 return
 
             # Check if user exists
             db_user = await DropUser.find_one(DropUser.discord_id == discord_id)
             if not db_user:
-                await interaction.response.send_message("Non sei registrato sul sito. Fai prima il login sulla dashboard.", ephemeral=True)
+                await interaction.response.send_message("You are not registered on the site. Please login to the dashboard first.", ephemeral=True)
                 return
 
             # Per "Build Primaria" controlliamo rigorosamente se l'ha salvata
-            if reason == "Build Primaria":
+            if reason == "Primary Build":
                 guild_id = str(interaction.guild_id)
                 build = await Build.find_one(Build.user_id == discord_id, Build.guild_id == guild_id, Build.status == "primary")
                 
                 if not build:
-                    await interaction.response.send_message("Non hai una build Primaria approvata per questa gilda.", ephemeral=True)
+                    await interaction.response.send_message("You don't have an approved Primary build for this guild.", ephemeral=True)
                     return
 
                 # Check if item is in the build
@@ -134,7 +149,7 @@ class CandidateButton(discord.ui.View):
                             break
 
                 if not has_item:
-                    await interaction.response.send_message(f"Non puoi candidarti per **{poll.item_name}** perché non è presente nella tua Build Primaria.", ephemeral=True)
+                    await interaction.response.send_message(f"You cannot apply for **{poll.item_name}** because it is not present in your Primary Build.", ephemeral=True)
                     return
 
             poll.candidates.append(discord_id)
@@ -142,38 +157,109 @@ class CandidateButton(discord.ui.View):
                 poll.candidate_reasons = {}
             poll.candidate_reasons[discord_id] = reason
             await poll.save()
-            await interaction.response.send_message(f"Ti sei candidato con successo per: **{reason}**!", ephemeral=True)
+            await interaction.response.send_message(f"You successfully applied for: **{reason}**!", ephemeral=True)
         except Exception as e:
             import traceback
             traceback.print_exc()
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"Si è verificato un errore: {e}", ephemeral=True)
+                await interaction.response.send_message(f"An error occurred: {e}", ephemeral=True)
 
-    @discord.ui.button(label='Build Primaria', style=discord.ButtonStyle.green, custom_id='candidate_primary_btn')
+    @discord.ui.button(label='Primary Build', style=discord.ButtonStyle.green, custom_id='candidate_primary_btn')
     async def candidate_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_candidate(interaction, "Build Primaria")
+        await self.process_candidate(interaction, "Primary Build")
 
-    @discord.ui.button(label='Litograph', style=discord.ButtonStyle.blurple, custom_id='candidate_litograph_btn')
+    @discord.ui.button(label='Lithograph', style=discord.ButtonStyle.blurple, custom_id='candidate_litograph_btn')
     async def candidate_litograph(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_candidate(interaction, "Litograph")
+        await self.process_candidate(interaction, "Lithograph")
 
-    @discord.ui.button(label='Build Secondaria', style=discord.ButtonStyle.gray, custom_id='candidate_secondary_btn')
+    @discord.ui.button(label='Secondary Build', style=discord.ButtonStyle.gray, custom_id='candidate_secondary_btn')
     async def candidate_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_candidate(interaction, "Build Secondaria")
+        await self.process_candidate(interaction, "Secondary Build")
+
+
+class SkillcoreCandidateButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    async def process_candidate(self, interaction: discord.Interaction, reason: str):
+        try:
+            # Trova sondaggio dal message id
+            message_id = str(interaction.message.id)
+            poll = await DropPoll.find_one(DropPoll.message_id == message_id)
+            if not poll:
+                poll = await DropPoll.find_one(DropPoll.channel_id == str(interaction.channel_id), DropPoll.status == "open").sort("-created_at")
+                
+            if not poll:
+                await interaction.response.send_message("Poll not found or expired.", ephemeral=True)
+                return
+            
+            if poll.status != "open":
+                await interaction.response.send_message("The poll is already closed.", ephemeral=True)
+                return
+                
+            discord_id = str(interaction.user.id)
+            if discord_id in poll.candidates:
+                await interaction.response.send_message("You are already a candidate.", ephemeral=True)
+                return
+
+            db_user = await DropUser.find_one(DropUser.discord_id == discord_id)
+            if not db_user:
+                await interaction.response.send_message("You are not registered on the site. Please login to the dashboard first.", ephemeral=True)
+                return
+
+            if reason == "Primary Build":
+                guild_id = str(interaction.guild_id)
+                build = await Build.find_one(Build.user_id == discord_id, Build.guild_id == guild_id, Build.status == "primary")
+                
+                if not build:
+                    await interaction.response.send_message("You don't have an approved Primary build for this guild.", ephemeral=True)
+                    return
+
+                has_item = False
+                if build.skillcores:
+                    sc_dict = build.skillcores.model_dump()
+                    for slot_key, item_data in sc_dict.items():
+                        if item_data and item_data.get("id") == poll.item_id:
+                            has_item = True
+                            break
+
+                if not has_item:
+                    await interaction.response.send_message(f"You cannot apply for **{poll.item_name}** because it is not present in your Primary Build.", ephemeral=True)
+                    return
+
+            poll.candidates.append(discord_id)
+            if not getattr(poll, "candidate_reasons", None):
+                poll.candidate_reasons = {}
+            poll.candidate_reasons[discord_id] = reason
+            await poll.save()
+            await interaction.response.send_message(f"You successfully applied for: **{reason}**!", ephemeral=True)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"An error occurred: {e}", ephemeral=True)
+
+    @discord.ui.button(label='Primary Build', style=discord.ButtonStyle.green, custom_id='candidate_skillcore_primary_btn')
+    async def candidate_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_candidate(interaction, "Primary Build")
+
+    @discord.ui.button(label='Secondary Build', style=discord.ButtonStyle.gray, custom_id='candidate_skillcore_secondary_btn')
+    async def candidate_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_candidate(interaction, "Secondary Build")
 
 
 
-class LucentModal(discord.ui.Modal, title='Candidatura Lucent'):
+class LucentModal(discord.ui.Modal, title='Lucent Application'):
     amount = discord.ui.TextInput(
-        label='Ammontare richiesto',
+        label='Requested amount',
         style=discord.TextStyle.short,
-        placeholder='Es. 500',
+        placeholder='E.g. 500',
         required=True
     )
     reason = discord.ui.TextInput(
-        label='Nota / Motivazione',
+        label='Note / Reason',
         style=discord.TextStyle.paragraph,
-        placeholder='Perché richiedi questi lucent?',
+        placeholder='Why are you requesting these lucent?',
         required=True,
         max_length=300
     )
@@ -191,27 +277,27 @@ class LucentModal(discord.ui.Modal, title='Candidatura Lucent'):
                 poll = await DropPoll.find_one(DropPoll.channel_id == self.target_channel_id, DropPoll.status == "open").sort("-created_at")
                 
             if not poll:
-                await interaction.response.send_message("Sondaggio non trovato o scaduto.", ephemeral=True)
+                await interaction.response.send_message("Poll not found or expired.", ephemeral=True)
                 return
             
             if poll.status != "open":
-                await interaction.response.send_message("Il sondaggio è già chiuso.", ephemeral=True)
+                await interaction.response.send_message("The poll is already closed.", ephemeral=True)
                 return
                 
             discord_id = str(interaction.user.id)
             if discord_id in poll.candidates:
-                await interaction.response.send_message("Sei già candidato.", ephemeral=True)
+                await interaction.response.send_message("You are already a candidate.", ephemeral=True)
                 return
 
             db_user = await DropUser.find_one(DropUser.discord_id == discord_id)
             if not db_user:
-                await interaction.response.send_message("Non sei registrato sul sito. Fai prima il login sulla dashboard.", ephemeral=True)
+                await interaction.response.send_message("You are not registered on the site. Please login to the dashboard first.", ephemeral=True)
                 return
 
             try:
                 amt = int(self.amount.value)
             except ValueError:
-                await interaction.response.send_message("L'ammontare deve essere un numero intero.", ephemeral=True)
+                await interaction.response.send_message("The amount must be an integer.", ephemeral=True)
                 return
 
             poll.candidates.append(discord_id)
@@ -222,18 +308,18 @@ class LucentModal(discord.ui.Modal, title='Candidatura Lucent'):
             poll.candidate_reasons[discord_id] = self.reason.value
             poll.candidate_amounts[discord_id] = amt
             await poll.save()
-            await interaction.response.send_message(f"Ti sei candidato con successo per {amt} Lucent!", ephemeral=True)
+            await interaction.response.send_message(f"You successfully applied for {amt} Lucent!", ephemeral=True)
         except Exception as e:
             import traceback
             traceback.print_exc()
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"Si è verificato un errore: {e}", ephemeral=True)
+                await interaction.response.send_message(f"An error occurred: {e}", ephemeral=True)
 
 class LucentCandidateButton(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label='Candidati per Lucent', style=discord.ButtonStyle.green, custom_id='candidate_lucent_btn')
+    @discord.ui.button(label='Apply for Lucent', style=discord.ButtonStyle.green, custom_id='candidate_lucent_btn')
     async def candidate_lucent(self, interaction: discord.Interaction, button: discord.ui.Button):
         msg_id = str(interaction.message.id) if interaction.message else ""
         chan_id = str(interaction.channel_id) if interaction.channel_id else ""
@@ -243,38 +329,23 @@ class LucentCandidateButton(discord.ui.View):
 
 # --- Translate Context Menu & Reactions ---
 
-async def translate_with_deepl(text: str, target_lang: str) -> str:
-    deepl_key = os.environ.get("DEEPL_AUTH_KEY")
-    if not deepl_key:
-        raise ValueError("Chiave API DeepL mancante (DEEPL_AUTH_KEY).")
-    
-    target = target_lang.upper()
-    if target == "EN":
-        target = "EN-US"
-    elif target == "PT":
-        target = "PT-BR"
-        
-    url = "https://api-free.deepl.com/v2/translate"
-    headers = {
-        "Authorization": f"DeepL-Auth-Key {deepl_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "text": [text],
-        "target_lang": target
-    }
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=payload, timeout=15.0)
-        response.raise_for_status()
-        data = response.json()
-        return data["translations"][0]["text"]
+from translators import translate_mymemory, translate_deepl, translate_gemini
+
+async def perform_translation(text: str, target_lang: str, config) -> str:
+    service = getattr(config, "translation_service", "mymemory")
+    if service == "deepl":
+        return await translate_deepl(text, target_lang)
+    elif service == "gemini":
+        return await translate_gemini(text, target_lang)
+    else:
+        return await translate_mymemory(text, target_lang)
 
 class TranslateView(discord.ui.View):
-    def __init__(self, message: discord.Message, options: list[discord.SelectOption], mode: str):
+    def __init__(self, message: discord.Message, options: list[discord.SelectOption], mode: str, config):
         super().__init__(timeout=120)
         self.message = message
         self.mode = mode
+        self.config = config
         
         self.select = discord.ui.Select(placeholder="Scegli la lingua...", options=options[:25])
         self.select.callback = self.select_callback
@@ -289,7 +360,7 @@ class TranslateView(discord.ui.View):
         await interaction.response.defer(ephemeral=(self.mode == "ephemeral"))
         
         try:
-            translated = await translate_with_deepl(self.message.content, lang_code)
+            translated = await perform_translation(self.message.content, lang_code, self.config)
             
             embed = discord.Embed(
                 description=translated,
@@ -360,7 +431,7 @@ async def translate_message_context(interaction: discord.Interaction, message: d
         await interaction.response.send_message("Nessuna lingua valida abilitata.", ephemeral=True)
         return
 
-    view = TranslateView(message, options, "ephemeral")
+    view = TranslateView(message, options, "ephemeral", config)
     await interaction.response.send_message("Seleziona la lingua per la traduzione:", view=view, ephemeral=True)
 
 @bot.event
@@ -435,7 +506,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         pass
 
     try:
-        translated = await translate_with_deepl(message.content, lang_code)
+        translated = await perform_translation(message.content, lang_code, config)
         
         embed = discord.Embed(
             description=translated,
@@ -459,19 +530,19 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         except:
             pass
 
-@bot.tree.command(name="pinguin_drop_start", description="Avvia un sondaggio per l'assegnazione di un item")
+@bot.tree.command(name="pinguin_drop_start", description="Start a poll for item assignment")
 @app_commands.autocomplete(item=item_autocomplete)
 async def drop_start(interaction: discord.Interaction, item: str):
     # L'admin invia item che è un json object dumpato
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("Solo gli admin possono avviare un drop.", ephemeral=True)
+        await interaction.response.send_message("Only admins can start a drop.", ephemeral=True)
         return
         
     try:
         parts = item.split("|")
         item_data = {"id": parts[0], "name": parts[1] if len(parts) > 1 else parts[0], "category": parts[2] if len(parts) > 2 else "Unknown"}
     except:
-        await interaction.response.send_message("Item non valido. Usa l'autocomplete.", ephemeral=True)
+        await interaction.response.send_message("Invalid item. Use autocomplete.", ephemeral=True)
         return
 
     guild_id = str(interaction.guild_id)
@@ -511,9 +582,60 @@ async def drop_start(interaction: discord.Interaction, item: str):
     view = CandidateButton()
     
     embed = discord.Embed(
-        title="🎉 Nuovo Drop Assegnabile!",
-        description=f"Item: **{item_data['name']}**\nScegli la motivazione per cui ti candidi tramite i pulsanti qui sotto.",
+        title="🎉 New Drop Available!",
+        description=f"Item: **{item_data['name']}**\nChoose the reason for your candidacy using the buttons below.",
         color=discord.Color.gold()
+    )
+    if icon_url:
+        embed.set_thumbnail(url=icon_url)
+    
+    await interaction.response.send_message(embed=embed, view=view)
+    msg = await interaction.original_response()
+    poll.message_id = str(msg.id)
+    await poll.save()
+
+
+@bot.tree.command(name="pinguin_skillcore_start", description="Start a poll for a skillcore assignment")
+@app_commands.autocomplete(skillcore=skillcore_autocomplete)
+async def skillcore_start(interaction: discord.Interaction, skillcore: str):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("Only admins can start a drop.", ephemeral=True)
+        return
+        
+    try:
+        parts = skillcore.split("|")
+        item_data = {"id": parts[0], "name": parts[1] if len(parts) > 1 else parts[0], "category": parts[2] if len(parts) > 2 else "Unknown"}
+    except:
+        await interaction.response.send_message("Invalid skillcore. Use autocomplete.", ephemeral=True)
+        return
+
+    # Check if skillcore exists in DB to get the image
+    from bson import ObjectId
+    try:
+        core = await SkillCore.get(ObjectId(item_data["id"]))
+        icon_url = core.imageUrl if core else None
+    except:
+        icon_url = None
+
+    guild_id = str(interaction.guild_id)
+    
+    poll = DropPoll(
+        guild_id=guild_id,
+        item_id=item_data["id"],
+        item_name=item_data["name"],
+        message_id="",
+        channel_id=str(interaction.channel_id),
+        poll_type="skillcore",
+        created_by=str(interaction.user.id)
+    )
+    await poll.save()
+
+    view = SkillcoreCandidateButton()
+    
+    embed = discord.Embed(
+        title="🎉 New Skillcore Drop Available!",
+        description=f"Skillcore: **{item_data['name']}**\nChoose the reason for your candidacy using the buttons below.",
+        color=discord.Color.purple()
     )
     if icon_url:
         embed.set_thumbnail(url=icon_url)
@@ -562,11 +684,11 @@ async def drop_start(interaction: discord.Interaction, item: str):
 # drop_close e drop_assign rimossi, gestiti via Web UI
 
 
-@bot.tree.command(name="pinguin_lucent_start", description="Avvia un sondaggio per l'assegnazione di Lucent")
-@app_commands.describe(amount="Ammontare totale di Lucent da assegnare")
+@bot.tree.command(name="pinguin_lucent_start", description="Start a poll for Lucent assignment")
+@app_commands.describe(amount="Total amount of Lucent to assign")
 async def lucent_start(interaction: discord.Interaction, amount: int):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("Solo gli admin possono avviare un sondaggio Lucent.", ephemeral=True)
+        await interaction.response.send_message("Only admins can start a Lucent poll.", ephemeral=True)
         return
 
     guild_id = str(interaction.guild_id)
@@ -586,8 +708,8 @@ async def lucent_start(interaction: discord.Interaction, amount: int):
     view = LucentCandidateButton()
     
     embed = discord.Embed(
-        title="💰 Assegnazione Lucent!",
-        description=f"Ammontare disponibile: **{amount} Lucent**\nClicca il pulsante qui sotto per inserire la quantità richiesta e la motivazione.",
+        title="💰 Lucent Assignment!",
+        description=f"Amount available: **{amount} Lucent**\nClick the button below to enter the requested amount and reason.",
         color=discord.Color.gold()
     )
     

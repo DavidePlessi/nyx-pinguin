@@ -19,13 +19,23 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api")
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.services.raid_helper import sync_all_guilds_activity
+
+scheduler = AsyncIOScheduler()
+
 @app.on_event("startup")
 async def startup_event():
     await init_db()
     await init_ipc()
+    
+    # Schedule raid helper sync at 10:00 AM daily
+    scheduler.add_job(sync_all_guilds_activity, 'cron', hour=10, minute=0)
+    scheduler.start()
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    scheduler.shutdown()
     await close_db()
 
 # Montaggio file statici Vue

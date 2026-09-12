@@ -58,6 +58,12 @@ const router = createRouter({
       name: 'TranslationAdmin',
       component: () => import('../views/TranslationAdmin.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/activity',
+      name: 'ActivityTracking',
+      component: () => import('../views/ActivityTracking.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

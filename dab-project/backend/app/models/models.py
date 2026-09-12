@@ -8,12 +8,16 @@ class GuildConfig(Document):
     source_channel_id: Optional[str] = None
     source_role_id: Optional[str] = None
     member_role_id: Optional[str] = None
+    drop_channel_id: Optional[str] = None
     dest_channels: List[str] = []
     external_dest_channels: List[str] = []
     is_active: bool = False
     translation_channel: bool = True
     translation_ephemeral: bool = False
+    translation_service: str = "mymemory" # "mymemory", "deepl", "gemini"
     translation_languages: List[str] = ["it", "en"]
+    raid_helper_api_key: Optional[str] = None
+    raid_helper_channel_id: Optional[str] = None
 
     class Settings:
         name = "guild_configs"

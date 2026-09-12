@@ -98,7 +98,7 @@ class GuildCreateSchema(BaseModel):
 @router.get("/guilds")
 async def get_all_guilds(admin: AdminUser = Depends(require_admin)):
     guilds = await GuildConfig.find_all().to_list()
-    return [{"guild_id": g.guild_id, "name": g.name, "member_role_id": g.member_role_id} for g in guilds]
+    return [{"guild_id": g.guild_id, "name": g.name, "member_role_id": g.member_role_id, "drop_channel_id": g.drop_channel_id} for g in guilds]
 
 @router.post("/guilds")
 async def create_guild(data: GuildCreateSchema, admin: AdminUser = Depends(require_admin)):

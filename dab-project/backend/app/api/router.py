@@ -17,6 +17,9 @@ api_router.include_router(questlog_router, prefix="/questlog", tags=["questlog"]
 from app.api.drops import router as drops_router
 api_router.include_router(drops_router, prefix="/drops", tags=["drops"])
 
+from app.api.activity import router as activity_router
+api_router.include_router(activity_router, prefix="/activity", tags=["activity"])
+
 from app.api.oauth import get_current_admin, get_current_guild_admin
 from app.models.models import AdminUser, GuildConfig, BotLog, AvailableLanguage
 from app.core.config import settings
@@ -38,13 +41,16 @@ class ConfigUpdateSchema(BaseModel):
     is_active: bool
     translation_channel: bool = True
     translation_ephemeral: bool = False
+    translation_service: str = "mymemory"
     translation_languages: List[str] = []
+    raid_helper_api_key: Optional[str] = None
+    raid_helper_channel_id: Optional[str] = None
 
 @api_router.get("/config/{guild_id}")
 async def get_config(guild_id: str, admin: AdminUser = Depends(get_current_guild_admin)):
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
-        return {"guild_id": guild_id, "is_active": False, "dest_channels": [], "external_dest_channels": [], "translation_channel": True, "translation_ephemeral": False, "translation_languages": []}
+        return {"guild_id": guild_id, "is_active": False, "dest_channels": [], "external_dest_channels": [], "translation_channel": True, "translation_ephemeral": False, "translation_service": "mymemory", "translation_languages": [], "raid_helper_api_key": None, "raid_helper_channel_id": None}
     return config
 
 @api_router.post("/config")
@@ -60,7 +66,12 @@ async def save_config(data: ConfigUpdateSchema, admin: AdminUser = Depends(get_c
         config.is_active = data.is_active
         config.translation_channel = data.translation_channel
         config.translation_ephemeral = data.translation_ephemeral
+        config.translation_service = data.translation_service
         config.translation_languages = data.translation_languages
+        if data.raid_helper_api_key is not None:
+            config.raid_helper_api_key = data.raid_helper_api_key
+        if data.raid_helper_channel_id is not None:
+            config.raid_helper_channel_id = data.raid_helper_channel_id
     await config.save()
     return {"status": "success", "config": config}
 

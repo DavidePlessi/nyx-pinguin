@@ -25,7 +25,10 @@ class GuildConfig(Document):
     is_active: bool = False
     translation_channel: bool = True
     translation_ephemeral: bool = False
+    translation_service: str = "mymemory"
     translation_languages: List[str] = ["it", "en"]
+    raid_helper_api_key: Optional[str] = None
+    raid_helper_channel_id: Optional[str] = None
 
     class Settings:
         name = "guild_configs"
@@ -61,15 +64,37 @@ class BuildSlots(BaseModel):
     head: Optional[BuildSlotItem] = None
     chest: Optional[BuildSlotItem] = None
 
+class BuildSkillcoreItem(BaseModel):
+    id: str
+    name: str
+    icon: Optional[str] = None
+
+class BuildSkillcores(BaseModel):
+    weapon: Optional[BuildSkillcoreItem] = None
+    armor_1: Optional[BuildSkillcoreItem] = None
+    armor_2: Optional[BuildSkillcoreItem] = None
+
 class Build(Document):
     user_id: str
     guild_id: str
     status: str = "draft" # draft, pending, primary
     slots: BuildSlots = BuildSlots()
+    skillcores: BuildSkillcores = BuildSkillcores()
     updated_at: datetime = datetime.utcnow()
 
     class Settings:
         name = "guild_builds"
+
+class SkillCore(Document):
+    name: str
+    effect: str
+    imageUrl: Optional[str] = None
+    slot: str
+    weapon: Optional[str] = None
+    lastUpdated: Optional[datetime] = None
+
+    class Settings:
+        name = "skill_cores"
 
 class DropHistory(Document):
     guild_id: str
