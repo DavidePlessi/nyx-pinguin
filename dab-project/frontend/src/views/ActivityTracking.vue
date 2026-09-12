@@ -51,7 +51,7 @@ const activities = ref<any[]>([])
 const eventsList = ref<any[]>([])
 const weeklyData = ref<Record<string, any>>({})
 const totalEvents = ref(0)
-const dropConfig = ref({ min_events: 2, min_weekly_activity: 5500 })
+const dropConfig = ref({ min_events: 2, min_weekly_activity: 5500, weekly_activity_day: 3 })
 
 const activeTab = ref('player') // 'player' or 'event'
 const expandedEvents = ref<Set<string>>(new Set())
@@ -166,46 +166,7 @@ const availableWeeks = computed(() => {
   return weeks.sort().reverse()
 })
 
-const last12Weeks = computed(() => {
-  const weeks = []
-  const now = new Date()
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now)
-    d.setDate(now.getDate() - i * 7)
-    const date = new Date(d.getTime())
-    date.setHours(0, 0, 0, 0)
-    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7)
-    const week1 = new Date(date.getFullYear(), 0, 4)
-    const weekNum = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)
-    weeks.push(`${date.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`)
-  }
-  return [...new Set(weeks)]
-})
 
-const applyWeekShortcut = () => {
-  if (!globalWeekShortcut.value) return
-  
-  const [yearStr, weekStr] = globalWeekShortcut.value.split('-W')
-  const y = parseInt(yearStr)
-  const w = parseInt(weekStr)
-  
-  const simple = new Date(y, 0, 1 + (w - 1) * 7)
-  const dow = simple.getDay()
-  const ISOweekStart = simple
-  if (dow <= 4)
-      ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1)
-  else
-      ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay())
-      
-  const weekStartStr = ISOweekStart.toISOString().split('T')[0]
-  
-  const ISOweekEnd = new Date(ISOweekStart)
-  ISOweekEnd.setDate(ISOweekStart.getDate() + 6)
-  const weekEndStr = ISOweekEnd.toISOString().split('T')[0]
-  
-  fromDate.value = weekStartStr
-  toDate.value = weekEndStr
-}
 
 const fetchActivity = async () => {
   if (!adminGuildId.value) return
@@ -398,8 +359,8 @@ const filteredActivities = computed(() => {
   const minEvents = dropConfig.value?.min_events || 2
   const minScore = dropConfig.value?.min_weekly_activity || 5500
   
-  return activities.value.map(p => {
-    const pEvents = p.events.filter(e => {
+  return activities.value.map((p: any) => {
+    const pEvents = p.events.filter((e: any) => {
       const d = new Date(e.date).getTime()
       return d >= start && d <= end
     })
@@ -677,9 +638,9 @@ watch([fromDate, toDate], () => {
             </div>
             
             <div class="flex items-center gap-2">
-               <label class="text-sm text-gray-400">{{ t('activity.targetWeek', 'Select Week') }}:</label>
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek') }}:</label>
                <select v-model="targetWeekId" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
-                 <option value="">{{ t('activity.allWeeks', 'All Weeks (Filter Range)') }}</option>
+                 <option value="">{{ t('activity.allWeeks') }}</option>
                  <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
                </select>
              </div>
@@ -902,13 +863,13 @@ watch([fromDate, toDate], () => {
           <div class="p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center flex-wrap gap-4">
              <div>
                <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.eligibleForDrop') }}</h2>
-               <p class="text-xs text-gray-400 mt-1">{{ t('activity.eligibleRule').replace('{events}', dropConfig.min_events).replace('{score}', dropConfig.min_weekly_activity) }}</p>
+               <p class="text-xs text-gray-400 mt-1">{{ t('activity.eligibleRule').replace('{events}', dropConfig.min_events.toString()).replace('{score}', dropConfig.min_weekly_activity.toString()) }}</p>
                <p v-if="targetWeekStart && targetWeekEnd" class="text-xs font-mono text-blue-400 mt-1">
                  {{ new Date(targetWeekStart).toLocaleDateString() }} - {{ new Date(targetWeekEnd).toLocaleDateString() }}
                </p>
              </div>
              <div class="flex items-center gap-2">
-               <label class="text-sm text-gray-400">{{ t('activity.targetWeek', 'Select Week') }}:</label>
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek') }}:</label>
                <select v-model="targetWeekId" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
                  <option value="">Current Week</option>
                  <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
@@ -977,9 +938,9 @@ watch([fromDate, toDate], () => {
                </p>
              </div>
              <div class="flex items-center gap-2">
-               <label class="text-sm text-gray-400">{{ t('activity.targetWeek', 'Select Week') }}:</label>
+               <label class="text-sm text-gray-400">{{ t('activity.targetWeek') }}:</label>
                <select v-model="targetWeekId" class="bg-gray-800 text-gray-200 border border-gray-600 rounded px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
-                 <option value="">{{ t('activity.allWeeks', 'All Weeks (Filter Range)') }}</option>
+                 <option value="">{{ t('activity.allWeeks') }}</option>
                  <option v-for="week in availableWeeks" :key="week" :value="week">{{ week }}</option>
                </select>
              </div>
