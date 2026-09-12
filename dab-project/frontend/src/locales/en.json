@@ -64,7 +64,9 @@
     "buildStatus": "Build Status",
     "authError": "Auth error",
     "translationAdminTitle": "Translations",
-    "translationAdminDesc": "Manage languages and bot translation settings."
+    "translationAdminDesc": "Manage languages and bot translation settings.",
+    "activityTitle": "Activity",
+    "activityDesc": "Track player PVP activity"
   },
   "modal": {
     "systemAlert": "SYSTEM ALERT",
@@ -294,5 +296,30 @@
     "saveSuccess": "Settings successfully saved!",
     "saveError": "Error saving settings.",
     "saveBtn": "Save Settings"
+  },
+  "activity": {
+    "title": "Activity Tracking",
+    "to": "to",
+    "noGuilds": "No guilds available.",
+    "loading": "Loading data...",
+    "playerCentric": "Player Centric",
+    "eventCentric": "Event Centric",
+    "chartTitle": "Temporal Participation Trends",
+    "chartHint": "Check the boxes in the table below to add or remove players from this chart.",
+    "chartNoEvents": "No events found in this date range.",
+    "chartNoPlayers": "Select at least one player below to show the chart.",
+    "roster": "Participation Roster",
+    "totalEvents": "Total Events in period:",
+    "chart": "Chart",
+    "playerName": "Player Name",
+    "searchPlayer": "Search player...",
+    "eventsAttended": "Events Attended",
+    "attendance": "Attendance %",
+    "noActivity": "No activity recorded for this date range or search query.",
+    "noEventsView": "No events found in this date range.",
+    "participants": "participants",
+    "noParticipants": "No valid participants recorded for this event.",
+    "forceSync": "Force Sync Now",
+    "syncing": "Syncing..."
   }
 }

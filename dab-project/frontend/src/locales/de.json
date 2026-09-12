@@ -64,7 +64,9 @@
     "buildStatus": "Build Status",
     "authError": "Auth-Fehler",
     "translationAdminTitle": "Übersetzungen",
-    "translationAdminDesc": "Verwalte Sprachen und Bot-Übersetzungseinstellungen."
+    "translationAdminDesc": "Verwalte Sprachen und Bot-Übersetzungseinstellungen.",
+    "activityTitle": "Aktivität",
+    "activityDesc": "PVP-Aktivitäten verfolgen"
   },
   "modal": {
     "systemAlert": "SYSTEMALARM",
@@ -294,5 +296,30 @@
     "saveSuccess": "Einstellungen gespeichert!",
     "saveError": "Fehler beim Speichern.",
     "saveBtn": "Einstellungen speichern"
+  },
+  "activity": {
+    "title": "Aktivitätsverfolgung",
+    "to": "bis",
+    "noGuilds": "Keine Gilden verfügbar.",
+    "loading": "Wird geladen...",
+    "playerCentric": "Spieler-Ansicht",
+    "eventCentric": "Event-Ansicht",
+    "chartTitle": "Teilnahme-Trends",
+    "chartHint": "Aktivieren Sie die Kontrollkästchen unten, um Spieler zum Diagramm hinzuzufügen.",
+    "chartNoEvents": "Keine Events in diesem Zeitraum.",
+    "chartNoPlayers": "Wählen Sie mindestens einen Spieler aus.",
+    "roster": "Teilnehmerliste",
+    "totalEvents": "Gesamte Events:",
+    "chart": "Diagramm",
+    "playerName": "Spielername",
+    "searchPlayer": "Suchen...",
+    "eventsAttended": "Teilnahmen",
+    "attendance": "Anwesenheit %",
+    "noActivity": "Keine Aktivität gefunden.",
+    "noEventsView": "Keine Events in diesem Zeitraum.",
+    "participants": "Teilnehmer",
+    "noParticipants": "Keine gültigen Teilnehmer für dieses Event.",
+    "forceSync": "Jetzt Synchronisieren",
+    "syncing": "Wird synchronisiert..."
   }
 }

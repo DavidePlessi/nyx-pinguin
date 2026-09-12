@@ -64,7 +64,9 @@
     "buildStatus": "Stato Build",
     "authError": "Errore auth",
     "translationAdminTitle": "Traduzioni",
-    "translationAdminDesc": "Gestisci lingue e impostazioni di traduzione del bot."
+    "translationAdminDesc": "Gestisci lingue e impostazioni di traduzione del bot.",
+    "activityTitle": "Attività",
+    "activityDesc": "Traccia l'attività PVP dei giocatori"
   },
   "modal": {
     "systemAlert": "ALLERTA DI SISTEMA",
@@ -294,5 +296,30 @@
     "saveSuccess": "Impostazioni salvate con successo!",
     "saveError": "Errore durante il salvataggio.",
     "saveBtn": "Salva Impostazioni"
+  },
+  "activity": {
+    "title": "Tracciamento Attività",
+    "to": "a",
+    "noGuilds": "Nessuna gilda disponibile.",
+    "loading": "Caricamento in corso...",
+    "playerCentric": "Vista Giocatori",
+    "eventCentric": "Vista Eventi",
+    "chartTitle": "Trend di Partecipazione",
+    "chartHint": "Spunta le caselle nella tabella sottostante per aggiungere o rimuovere giocatori dal grafico.",
+    "chartNoEvents": "Nessun evento trovato in questo periodo.",
+    "chartNoPlayers": "Seleziona almeno un giocatore per visualizzare il grafico.",
+    "roster": "Elenco Partecipanti",
+    "totalEvents": "Eventi totali nel periodo:",
+    "chart": "Grafico",
+    "playerName": "Nome Giocatore",
+    "searchPlayer": "Cerca giocatore...",
+    "eventsAttended": "Eventi Partecipati",
+    "attendance": "Presenza %",
+    "noActivity": "Nessuna attività registrata con questi filtri.",
+    "noEventsView": "Nessun evento trovato in questo periodo.",
+    "participants": "partecipanti",
+    "noParticipants": "Nessun partecipante valido per questo evento.",
+    "forceSync": "Forza Sincronizzazione",
+    "syncing": "Sincronizzazione..."
   }
 }

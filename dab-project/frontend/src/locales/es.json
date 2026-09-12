@@ -64,7 +64,9 @@
     "buildStatus": "Estado Build",
     "authError": "Error de auth",
     "translationAdminTitle": "Traducciones",
-    "translationAdminDesc": "Gestiona idiomas y ajustes de traducción del bot."
+    "translationAdminDesc": "Gestiona idiomas y ajustes de traducción del bot.",
+    "activityTitle": "Actividad",
+    "activityDesc": "Rastrea la actividad JcJ"
   },
   "modal": {
     "systemAlert": "ALERTA DEL SISTEMA",
@@ -294,5 +296,30 @@
     "saveSuccess": "¡Ajustes guardados!",
     "saveError": "Error al guardar.",
     "saveBtn": "Guardar Ajustes"
+  },
+  "activity": {
+    "title": "Rastreo de Actividad",
+    "to": "a",
+    "noGuilds": "No hay gremios disponibles.",
+    "loading": "Cargando...",
+    "playerCentric": "Vista de Jugadores",
+    "eventCentric": "Vista de Eventos",
+    "chartTitle": "Tendencias de Participación",
+    "chartHint": "Marca las casillas en la tabla de abajo para modificar el gráfico.",
+    "chartNoEvents": "No se encontraron eventos en este período.",
+    "chartNoPlayers": "Selecciona al menos un jugador para ver el gráfico.",
+    "roster": "Lista de Participantes",
+    "totalEvents": "Eventos totales:",
+    "chart": "Gráfico",
+    "playerName": "Nombre",
+    "searchPlayer": "Buscar...",
+    "eventsAttended": "Eventos Asistidos",
+    "attendance": "Asistencia %",
+    "noActivity": "No se registró actividad con estos filtros.",
+    "noEventsView": "No se encontraron eventos en este período.",
+    "participants": "participantes",
+    "noParticipants": "No hay participantes válidos para este evento.",
+    "forceSync": "Forzar Sincronización",
+    "syncing": "Sincronizando..."
   }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
+import { t } from '../i18n'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -21,6 +22,9 @@ const totalEvents = ref(0)
 
 const activeTab = ref('player') // 'player' or 'event'
 const expandedEvents = ref<Set<string>>(new Set())
+const expandedPlayers = ref<Set<string>>(new Set())
+const playerSearchQuery = ref('')
+const isChartExpanded = ref(false)
 
 const loading = ref(true)
 const syncing = ref(false)
@@ -68,10 +72,10 @@ const fetchActivity = async () => {
       weeklyData.value = data.weekly_data || {}
       totalEvents.value = data.total_events || 0
       
-      // Auto-select top 5 players for chart if none selected
+      // Auto-select top 10 players for chart if none selected
       if (selectedPlayers.value.size === 0 && activities.value.length > 0) {
-        const top5 = [...activities.value].sort((a, b) => b.total_events - a.total_events).slice(0, 5)
-        top5.forEach(p => selectedPlayers.value.add(p.player_id))
+        const top10 = [...activities.value].sort((a, b) => b.total_events - a.total_events).slice(0, 10)
+        top10.forEach(p => selectedPlayers.value.add(p.player_id))
       }
     } else {
       activities.value = []
@@ -169,8 +173,30 @@ const sortBy = (key: string) => {
   }
 }
 
+const togglePlayerExpansion = (playerId: string) => {
+  if (expandedPlayers.value.has(playerId)) {
+    expandedPlayers.value.delete(playerId)
+  } else {
+    expandedPlayers.value.add(playerId)
+  }
+}
+
+const toggleEvent = (eventId: string) => {
+  if (expandedEvents.value.has(eventId)) {
+    expandedEvents.value.delete(eventId)
+  } else {
+    expandedEvents.value.add(eventId)
+  }
+}
+
 const sortedActivities = computed(() => {
-  return [...activities.value].sort((a, b) => {
+  let filtered = activities.value
+  if (playerSearchQuery.value) {
+    const q = playerSearchQuery.value.toLowerCase()
+    filtered = filtered.filter(p => p.player_name.toLowerCase().includes(q))
+  }
+  
+  return [...filtered].sort((a, b) => {
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
     
@@ -194,14 +220,6 @@ const togglePlayerSelection = (playerId: string) => {
     selectedPlayers.value.delete(playerId)
   } else {
     selectedPlayers.value.add(playerId)
-  }
-}
-
-const toggleEvent = (eventId: string) => {
-  if (expandedEvents.value.has(eventId)) {
-    expandedEvents.value.delete(eventId)
-  } else {
-    expandedEvents.value.add(eventId)
   }
 }
 
@@ -268,120 +286,208 @@ watch([fromDate, toDate], () => {
 </script>
 
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-      <h1 class="text-3xl font-bold text-gray-100 uppercase tracking-wide">Activity Tracking</h1>
+  <div class="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-100 uppercase tracking-wide w-full xl:w-auto text-center xl:text-left">{{ t('activity.title') }}</h1>
       
-      <div class="flex items-center gap-4">
+      <div class="flex flex-col sm:flex-row flex-wrap items-center gap-3 sm:gap-4 w-full xl:w-auto justify-center xl:justify-end">
         <!-- Date Filters -->
-        <div class="flex items-center gap-2">
-          <input type="date" v-model="fromDate" class="bg-gray-800 border border-gray-700 text-gray-300 px-3 py-1 rounded outline-none focus:border-blue-500 text-sm">
-          <span class="text-gray-500">to</span>
-          <input type="date" v-model="toDate" class="bg-gray-800 border border-gray-700 text-gray-300 px-3 py-1 rounded outline-none focus:border-blue-500 text-sm">
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-center">
+          <input type="date" v-model="fromDate" class="bg-gray-800 border border-gray-700 text-gray-300 px-3 py-2 sm:py-1 rounded outline-none focus:border-blue-500 text-sm flex-1 sm:flex-none">
+          <span class="text-gray-500 px-1">{{ t('activity.to') }}</span>
+          <input type="date" v-model="toDate" class="bg-gray-800 border border-gray-700 text-gray-300 px-3 py-2 sm:py-1 rounded outline-none focus:border-blue-500 text-sm flex-1 sm:flex-none">
         </div>
 
+        <select 
+          v-if="adminGuildsInfo.length > 0" 
+          v-model="adminGuildId" 
+          @change="onGuildChange"
+          class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 sm:py-1 rounded outline-none focus:border-blue-500 font-bold w-full sm:w-auto max-w-xs"
+        >
+          <option v-for="g in adminGuildsInfo" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
+        
         <button 
           v-if="['admin', 'guild_admin'].includes(userRole)"
           @click="forceSync" 
           :disabled="syncing || !adminGuildId"
-          class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50 flex items-center gap-2"
+          class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto"
         >
           <svg class="w-4 h-4" :class="{'animate-spin': syncing}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          {{ syncing ? 'Syncing...' : 'Force Sync Now' }}
         </button>
       </div>
     </div>
-
-    <!-- Guild Selector -->
-    <div v-if="adminGuilds.length > 1" class="bg-gray-800 p-4 rounded mb-6 flex flex-col md:flex-row gap-4 md:items-center">
-      <label class="font-rajdhani text-gray-400 uppercase tracking-wide">Select Guild</label>
-      <select v-model="adminGuildId" @change="onGuildChange" class="bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded w-full md:w-1/3 outline-none focus:border-blue-500">
-        <option v-for="g in adminGuildsInfo" :key="g.id" :value="g.id">{{ g.name }}</option>
-      </select>
-    </div>
     
-    <div v-if="loading" class="text-center py-10 text-gray-400 font-mono animate-pulse">Loading data...</div>
-    <div v-else-if="!adminGuildId" class="text-center py-10 text-gray-500">No guilds available.</div>
+    <div v-if="loading" class="text-center py-10 text-gray-400 font-mono animate-pulse">{{ t('activity.loading') }}</div>
+    <div v-else-if="!adminGuildId" class="text-center py-10 text-gray-500">{{ t('activity.noGuilds') }}</div>
     <div v-else class="space-y-6">
       
       <!-- Tabs -->
-      <div class="flex border-b border-gray-700">
+      <div class="flex border-b border-gray-700 overflow-x-auto whitespace-nowrap">
         <button 
           @click="activeTab = 'player'" 
-          class="px-6 py-3 font-semibold text-sm transition-colors border-b-2"
+          class="px-4 sm:px-6 py-3 font-semibold text-sm transition-colors border-b-2 flex-1 sm:flex-none"
           :class="activeTab === 'player' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200'"
         >
-          Player Centric
+          {{ t('activity.playerCentric') }}
         </button>
         <button 
           @click="activeTab = 'event'" 
-          class="px-6 py-3 font-semibold text-sm transition-colors border-b-2"
+          class="px-4 sm:px-6 py-3 font-semibold text-sm transition-colors border-b-2 flex-1 sm:flex-none"
           :class="activeTab === 'event' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200'"
         >
-          Event Centric
+          {{ t('activity.eventCentric') }}
         </button>
       </div>
 
       <!-- PLAYER CENTRIC VIEW -->
       <div v-if="activeTab === 'player'" class="space-y-6 animate-fade-in">
         <!-- Chart -->
-        <div class="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
-          <h2 class="text-xl font-semibold text-gray-200 mb-4 flex items-center gap-2">
-            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-            Temporal Participation Trends
-          </h2>
-          <div style="height: 350px;">
-            <Line v-if="chartData.labels.length > 0 && selectedPlayers.size > 0" :data="chartData" :options="chartOptions" />
-            <div v-else class="text-gray-500 h-full flex items-center justify-center italic">
-              {{ chartData.labels.length === 0 ? 'No events found in this date range.' : 'Select at least one player below to show the chart.' }}
-            </div>
-          </div>
-          <p class="text-xs text-gray-500 mt-4 text-center">Click on table rows below to add or remove players from this chart.</p>
-        </div>
-
-        <!-- Summary & Table -->
-        <div class="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
-          <div class="p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-gray-200">Participation Roster</h2>
-            <div class="text-sm font-mono text-gray-400">Total Events in period: <strong class="text-white">{{ totalEvents }}</strong></div>
+        <div class="bg-gray-800 rounded-lg shadow border border-gray-700 overflow-hidden">
+          <div 
+            class="p-4 sm:p-6 bg-gray-800 hover:bg-gray-750 cursor-pointer flex justify-between items-center transition-colors"
+            @click="isChartExpanded = !isChartExpanded"
+          >
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-200 flex items-center gap-2">
+              <svg class="w-5 h-5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+              {{ t('activity.chartTitle') }}
+            </h2>
+            <svg class="w-5 h-5 text-gray-500 transition-transform" :class="{'rotate-180': isChartExpanded}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
           </div>
           
-          <div class="overflow-x-auto">
+          <div v-if="isChartExpanded" class="p-4 sm:p-6 border-t border-gray-700 bg-gray-900/20">
+            <div style="height: 350px;">
+              <Line v-if="chartData.labels.length > 0 && selectedPlayers.size > 0" :data="chartData" :options="chartOptions" />
+              <div v-else class="text-gray-500 h-full flex items-center justify-center italic text-center p-4">
+                {{ chartData.labels.length === 0 ? t('activity.chartNoEvents') : t('activity.chartNoPlayers') }}
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4 text-center px-2">{{ t('activity.chartHint') }}</p>
+          </div>
+        </div>
+
+        <!-- Summary & Table / Deck -->
+        <div class="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
+          <div class="p-4 sm:p-4 bg-gray-900/50 border-b border-gray-700 flex justify-between items-center gap-2">
+            <h2 class="text-base sm:text-lg font-semibold text-gray-200">{{ t('activity.roster') }}</h2>
+            <div class="text-xs sm:text-sm font-mono text-gray-400">{{ t('activity.totalEvents') }} <strong class="text-white">{{ totalEvents }}</strong></div>
+          </div>
+          
+          <!-- Mobile Controls (Sort & Filter) -->
+          <div class="md:hidden p-4 bg-gray-900/30 border-b border-gray-700 flex flex-col gap-3">
+            <input type="text" v-model="playerSearchQuery" :placeholder="t('activity.searchPlayer')" class="bg-gray-800 border border-gray-700 text-gray-200 px-3 py-2 rounded outline-none focus:border-blue-500 font-normal w-full">
+            <div class="flex flex-wrap gap-2 text-xs uppercase tracking-wider font-semibold">
+              <button @click="sortBy('player_name')" class="px-3 py-2 rounded border flex items-center gap-1 transition-colors" :class="{'bg-gray-700 text-white border-gray-500': sortKey === 'player_name', 'bg-gray-800 text-gray-400 border-gray-700': sortKey !== 'player_name'}">
+                {{ t('activity.playerName') }}
+                <span v-if="sortKey === 'player_name'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
+              </button>
+              <button @click="sortBy('total_events')" class="px-3 py-2 rounded border flex items-center gap-1 transition-colors" :class="{'bg-gray-700 text-white border-gray-500': sortKey === 'total_events', 'bg-gray-800 text-gray-400 border-gray-700': sortKey !== 'total_events'}">
+                {{ t('activity.eventsAttended') }}
+                <span v-if="sortKey === 'total_events'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
+              </button>
+              <button @click="sortBy('attendance')" class="px-3 py-2 rounded border flex items-center gap-1 transition-colors" :class="{'bg-gray-700 text-white border-gray-500': sortKey === 'attendance', 'bg-gray-800 text-gray-400 border-gray-700': sortKey !== 'attendance'}">
+                {{ t('activity.attendance') }}
+                <span v-if="sortKey === 'attendance'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Mobile Deck (Cards) -->
+          <div class="md:hidden p-4 space-y-4">
+            <template v-for="player in sortedActivities" :key="player.player_id">
+              <div 
+                class="bg-gray-800 border rounded-lg p-4 transition-colors"
+                :class="selectedPlayers.has(player.player_id) ? 'border-blue-500/50 bg-blue-900/20' : 'border-gray-700'"
+              >
+                <div class="flex justify-between items-center mb-4">
+                  <div class="flex items-center gap-3 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
+                    <svg class="w-5 h-5 text-gray-500 transition-transform shrink-0" :class="{'rotate-180': expandedPlayers.has(player.player_id)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <span class="font-bold text-gray-100 text-lg truncate">{{ player.player_name }}</span>
+                  </div>
+                  <div class="cursor-pointer p-2 -mr-2 shrink-0" @click="togglePlayerSelection(player.player_id)">
+                    <input type="checkbox" :checked="selectedPlayers.has(player.player_id)" class="pointer-events-none w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/50">
+                  </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 text-sm cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
+                  <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
+                    <p class="text-gray-500 text-xs uppercase mb-1">{{ t('activity.eventsAttended') }}</p>
+                    <p><span class="font-bold text-gray-100 text-lg">{{ player.total_events }}</span> <span class="text-gray-500">/ {{ totalEvents }}</span></p>
+                  </div>
+                  <div class="bg-gray-900/30 rounded p-2 border border-gray-700/50">
+                    <p class="text-gray-500 text-xs uppercase mb-1">{{ t('activity.attendance') }}</p>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="font-mono text-base font-bold" :class="{'text-green-400': (player.total_events / totalEvents) >= 0.8, 'text-yellow-400': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'text-red-400': (player.total_events / totalEvents) < 0.5}">
+                        {{ totalEvents ? Math.round((player.total_events / totalEvents) * 100) : 0 }}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Expanded Mobile View -->
+                <div v-if="expandedPlayers.has(player.player_id)" class="mt-4 pt-4 border-t border-gray-700 animate-fade-in">
+                   <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.eventsAttended') }}</h4>
+                   <div class="space-y-2">
+                     <div v-for="ev in player.events" :key="ev.event_id" class="bg-gray-900/50 border border-gray-700 rounded p-3 flex justify-between items-center gap-2">
+                        <p class="text-sm font-medium text-gray-200 truncate">{{ ev.event_name }}</p>
+                        <p class="text-xs text-gray-500 font-mono shrink-0">{{ new Date(ev.date).toLocaleDateString() }}</p>
+                     </div>
+                   </div>
+                </div>
+              </div>
+            </template>
+            <div v-if="sortedActivities.length === 0" class="p-8 text-center text-gray-500 italic">{{ t('activity.noActivity') }}</div>
+          </div>
+          
+          <!-- Desktop Table (Hidden on Mobile) -->
+          <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-left text-gray-300">
               <thead class="bg-gray-900 text-gray-400 uppercase text-xs tracking-wider">
-                <tr>
-                  <th class="p-4 w-12 text-center">Chart</th>
-                  <th class="p-4 cursor-pointer hover:text-white" @click="sortBy('player_name')">
-                    Player Name
-                    <span v-if="sortKey === 'player_name'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
-                  </th>
-                  <th class="p-4 cursor-pointer hover:text-white" @click="sortBy('total_events')">
-                    Events Attended
-                    <span v-if="sortKey === 'total_events'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
-                  </th>
-                  <th class="p-4 cursor-pointer hover:text-white" @click="sortBy('attendance')">
-                    Attendance %
-                    <span v-if="sortKey === 'attendance'" class="text-blue-400">{{ sortDesc ? '↓' : '↑' }}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+              <tr>
+                <th class="p-4 w-12 text-center">{{ t('activity.chart') }}</th>
+                <th class="p-4">
+                  <div class="flex flex-col gap-2">
+                    <div class="cursor-pointer hover:text-white flex items-center w-max" @click="sortBy('player_name')">
+                      {{ t('activity.playerName') }}
+                      <span v-if="sortKey === 'player_name'" class="text-blue-400 ml-1">{{ sortDesc ? '↓' : '↑' }}</span>
+                    </div>
+                    <input type="text" v-model="playerSearchQuery" :placeholder="t('activity.searchPlayer')" class="bg-gray-800 border border-gray-700 text-gray-200 px-2 py-1 rounded outline-none focus:border-blue-500 font-normal normal-case w-full min-w-[120px] max-w-[200px]">
+                  </div>
+                </th>
+                <th class="p-4 cursor-pointer hover:text-white align-top pt-5" @click="sortBy('total_events')">
+                  <div class="flex items-center w-max">
+                    {{ t('activity.eventsAttended') }}
+                    <span v-if="sortKey === 'total_events'" class="text-blue-400 ml-1">{{ sortDesc ? '↓' : '↑' }}</span>
+                  </div>
+                </th>
+                <th class="p-4 cursor-pointer hover:text-white align-top pt-5 min-w-[120px]" @click="sortBy('attendance')">
+                  <div class="flex items-center w-max">
+                    {{ t('activity.attendance') }}
+                    <span v-if="sortKey === 'attendance'" class="text-blue-400 ml-1">{{ sortDesc ? '↓' : '↑' }}</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="player in sortedActivities" :key="player.player_id">
                 <tr 
-                  v-for="player in sortedActivities" 
-                  :key="player.player_id" 
-                  class="border-b border-gray-700/50 hover:bg-gray-750 cursor-pointer transition-colors"
+                  class="border-b border-gray-700/50 hover:bg-gray-750 transition-colors"
                   :class="{'bg-blue-900/10': selectedPlayers.has(player.player_id)}"
-                  @click="togglePlayerSelection(player.player_id)"
                 >
-                  <td class="p-4 text-center">
+                  <td class="p-4 text-center cursor-pointer" @click="togglePlayerSelection(player.player_id)">
                     <input type="checkbox" :checked="selectedPlayers.has(player.player_id)" class="pointer-events-none rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/50">
                   </td>
-                  <td class="p-4 font-medium">{{ player.player_name }}</td>
-                  <td class="p-4">
+                  <td class="p-4 font-medium cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
+                    <div class="flex items-center gap-2">
+                      <svg class="w-4 h-4 text-gray-500 transition-transform" :class="{'rotate-180': expandedPlayers.has(player.player_id)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                      {{ player.player_name }}
+                    </div>
+                  </td>
+                  <td class="p-4 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                     <span class="font-bold text-gray-100">{{ player.total_events }}</span>
                     <span class="text-gray-500 text-xs ml-1">/ {{ totalEvents }}</span>
                   </td>
-                  <td class="p-4">
+                  <td class="p-4 cursor-pointer" @click="togglePlayerExpansion(player.player_id)">
                     <div class="flex items-center gap-3">
                       <span class="w-12 text-right font-mono text-sm" :class="{'text-green-400': (player.total_events / totalEvents) >= 0.8, 'text-yellow-400': (player.total_events / totalEvents) >= 0.5 && (player.total_events / totalEvents) < 0.8, 'text-red-400': (player.total_events / totalEvents) < 0.5}">
                         {{ totalEvents ? Math.round((player.total_events / totalEvents) * 100) : 0 }}%
@@ -394,10 +500,25 @@ watch([fromDate, toDate], () => {
                     </div>
                   </td>
                 </tr>
-                <tr v-if="sortedActivities.length === 0">
-                  <td colspan="4" class="p-8 text-center text-gray-500 italic">No activity recorded for this date range.</td>
+                <!-- Expanded Player Details -->
+                <tr v-if="expandedPlayers.has(player.player_id)" class="bg-gray-900/50 border-b border-gray-700/50">
+                  <td colspan="4" class="p-4">
+                    <div class="pl-10">
+                      <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{{ t('activity.eventsAttended') }}</h4>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <div v-for="ev in player.events" :key="ev.event_id" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 flex justify-between items-center gap-2">
+                          <p class="text-sm font-medium text-gray-200 truncate" :title="ev.event_name">{{ ev.event_name }}</p>
+                          <p class="text-xs text-gray-500 font-mono shrink-0">{{ new Date(ev.date).toLocaleDateString() }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
-              </tbody>
+              </template>
+              <tr v-if="sortedActivities.length === 0">
+                <td colspan="4" class="p-8 text-center text-gray-500 italic">{{ t('activity.noActivity') }}</td>
+              </tr>
+            </tbody>
             </table>
           </div>
         </div>
@@ -405,35 +526,35 @@ watch([fromDate, toDate], () => {
 
       <!-- EVENT CENTRIC VIEW -->
       <div v-if="activeTab === 'event'" class="space-y-4 animate-fade-in">
-        <div v-if="sortedEventsList.length === 0" class="text-center p-10 text-gray-500 italic bg-gray-800 rounded-lg border border-gray-700">
-          No events found in this date range.
+        <div v-if="sortedEventsList.length === 0" class="text-center p-6 sm:p-10 text-gray-500 italic bg-gray-800 rounded-lg border border-gray-700">
+          {{ t('activity.noEventsView') }}
         </div>
         
         <div v-for="event in sortedEventsList" :key="event.event_id" class="bg-gray-800 rounded-lg shadow border border-gray-700 overflow-hidden">
           <div 
-            class="p-4 bg-gray-800 hover:bg-gray-750 cursor-pointer flex justify-between items-center transition-colors"
+            class="p-3 sm:p-4 bg-gray-800 hover:bg-gray-750 cursor-pointer flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 transition-colors"
             @click="toggleEvent(event.event_id)"
           >
             <div>
-              <h3 class="text-lg font-bold text-gray-200">{{ event.event_name }}</h3>
-              <p class="text-sm text-gray-400 font-mono">{{ new Date(event.date).toLocaleString() }}</p>
+              <h3 class="text-base sm:text-lg font-bold text-gray-200 break-words">{{ event.event_name }}</h3>
+              <p class="text-xs sm:text-sm text-gray-400 font-mono mt-1 sm:mt-0">{{ new Date(event.date).toLocaleString() }}</p>
             </div>
-            <div class="flex items-center gap-4">
-              <span class="bg-gray-900 border border-gray-700 px-3 py-1 rounded text-sm font-mono text-gray-300">
-                <strong class="text-blue-400">{{ event.participants?.length || 0 }}</strong> participants
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <span class="bg-gray-900 border border-gray-700 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm font-mono text-gray-300">
+                <strong class="text-blue-400">{{ event.participants?.length || 0 }}</strong> {{ t('activity.participants') }}
               </span>
-              <svg class="w-5 h-5 text-gray-500 transition-transform" :class="{'rotate-180': expandedEvents.has(event.event_id)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              <svg class="w-5 h-5 text-gray-500 transition-transform shrink-0" :class="{'rotate-180': expandedEvents.has(event.event_id)}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
             </div>
           </div>
           
-          <div v-if="expandedEvents.has(event.event_id)" class="p-4 bg-gray-900/50 border-t border-gray-700">
-            <div v-if="event.participants && event.participants.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              <div v-for="p in event.participants" :key="p.player_id" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-300 flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                {{ p.player_name }}
+          <div v-if="expandedEvents.has(event.event_id)" class="p-3 sm:p-4 bg-gray-900/50 border-t border-gray-700">
+            <div v-if="event.participants && event.participants.length > 0" class="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              <div v-for="p in event.participants" :key="p.player_id" class="bg-gray-800 border border-gray-700 rounded px-2 sm:px-3 py-2 text-xs sm:text-sm text-gray-300 flex items-center gap-2 truncate">
+                <div class="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-green-500 shrink-0"></div>
+                <span class="truncate">{{ p.player_name }}</span>
               </div>
             </div>
-            <p v-else class="text-gray-500 italic text-sm">No valid participants recorded for this event.</p>
+            <p v-else class="text-gray-500 italic text-xs sm:text-sm">{{ t('activity.noParticipants') }}</p>
           </div>
         </div>
       </div>
