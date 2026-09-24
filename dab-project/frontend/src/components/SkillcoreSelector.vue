@@ -25,7 +25,7 @@ const searchItems = async (query: string) => {
   }
   isSearching.value = true
   try {
-    const url = new URL(`${BACKEND_URL}/api/drops/skillcores`)
+    const url = new URL(`${BACKEND_URL}/api/drops/skillcores`, window.location.origin)
     url.searchParams.append('query', query)
     url.searchParams.append('slot', props.slotCategory)
     if (props.slotCategory === 'Weapon' && props.weapons && props.weapons.length > 0) {
