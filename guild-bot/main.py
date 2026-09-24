@@ -171,9 +171,9 @@ class CandidateButton(discord.ui.View):
     async def candidate_primary(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.process_candidate(interaction, "Primary Build")
 
-    @discord.ui.button(label='Lithograph', style=discord.ButtonStyle.blurple, custom_id='candidate_litograph_btn')
+    @discord.ui.button(label='Water-Lito', style=discord.ButtonStyle.blurple, custom_id='candidate_litograph_btn')
     async def candidate_litograph(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_candidate(interaction, "Lithograph")
+        await self.process_candidate(interaction, "Water-Lito")
 
     @discord.ui.button(label='Secondary Build', style=discord.ButtonStyle.gray, custom_id='candidate_secondary_btn')
     async def candidate_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
