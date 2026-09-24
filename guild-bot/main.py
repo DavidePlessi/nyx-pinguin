@@ -30,7 +30,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         # Connessione DB
         client = AsyncIOMotorClient(MONGO_URI)
-        await init_beanie(database=client[MONGO_DB_NAME], document_models=[DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage, WeeklyGameActivity, BotLog])
+        await init_beanie(database=client[MONGO_DB_NAME], document_models=[DropUser, Build, DropHistory, DropPoll, GuildConfig, AvailableLanguage, WeeklyGameActivity, BotLog, SkillCore])
         # Sync slash commands
         if TEST_GUILD_ID:
             guild = discord.Object(id=int(TEST_GUILD_ID))
@@ -150,6 +150,38 @@ class CandidateButton(discord.ui.View):
                         if item_data and item_data.get("id") == poll.item_id:
                             has_item = True
                             break
+
+                if not has_item:
+                    import urllib.parse
+                    import json
+                    import httpx
+                    
+                    try:
+                        url = f"https://questlog.gg/throne-and-liberty/api/trpc/database.getItem?input={urllib.parse.quote(json.dumps({'id': poll.item_id, 'language': 'en'}))}"
+                        async with httpx.AsyncClient() as client:
+                            res = await client.get(url)
+                            if res.status_code == 200:
+                                data = res.json()
+                                item_info = data.get('result', {}).get('data', {})
+                                perks = item_info.get('itemConvertsToPerks', [])
+                                if perks:
+                                    for perk in perks:
+                                        perk_name = perk.get('name', '')
+                                        clean_perk_name = perk_name.replace("Skill Core: ", "").strip()
+                                        
+                                        if build.skillcores:
+                                            sc_dict = build.skillcores.model_dump()
+                                            for sc_key, sc_data in sc_dict.items():
+                                                if sc_data and sc_data.get("name"):
+                                                    sc_name = sc_data.get("name")
+                                                    clean_sc_name = sc_name.replace("Skill Core: ", "").strip()
+                                                    if clean_sc_name == clean_perk_name or sc_name == perk_name:
+                                                        has_item = True
+                                                        break
+                                        if has_item:
+                                            break
+                    except Exception as e:
+                        print(f"Error checking skillcore fallback: {e}")
 
                 if not has_item:
                     await interaction.response.send_message(f"You cannot apply for **{poll.item_name}** because it is not present in your Primary Build.", ephemeral=True)
