@@ -43,6 +43,9 @@ class GuildConfig(Document):
     
     # Bot UI Language
     bot_language: str = "en"
+    
+    # Drops UI Settings
+    drop_strict_primary: bool = True
 
     class Settings:
         name = "guild_configs"
