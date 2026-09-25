@@ -55,6 +55,8 @@
     "musicPlayerDesc": "Controllo riproduzione musicale avanzato e stream Piped.",
     "dropManagement": "Drop Management",
     "dropManagementDesc": "Pannello avanzato Drops e Storico gilda.",
+    "publicDrops": "Drops & History",
+    "publicDropsDesc": "Visualizza i drop attivi e lo storico delle assegnazioni per le tue gilde.",
     "adminPanelTitle": "Admin Panel",
     "adminPanelDesc": "Gestione globale e autorizzazioni sistema.",
     "yourGuilds": "Le Tue Gilde",
@@ -278,7 +280,16 @@
     "primaryBuild": "Build Primaria",
     "noBuildFound": "Nessuna build primaria trovata per questo utente.",
     "noBuildsFound": "Nessuna build trovata con questi filtri.",
-    "refreshData": "Aggiorna Dati"
+    "refreshData": "Aggiorna Dati",
+    "settingsTitle": "Impostazioni Drop",
+    "strictPrimaryCheck": "Controllo Stretto Build Primaria (Il bot verifica che l'utente abbia l'item o lo skillcore nella build)",
+    "saveSettings": "Salva Impostazioni",
+    "historyTitle": "Storico Assegnazioni",
+    "total": "Totale:",
+    "date": "Data",
+    "item": "Item",
+    "assignedTo": "Assegnato a",
+    "reason": "Motivo"
   },
   "translationAdmin": {
     "title": "Translation Admin",

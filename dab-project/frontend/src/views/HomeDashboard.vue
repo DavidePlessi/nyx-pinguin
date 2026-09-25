@@ -107,6 +107,15 @@ onMounted(() => {
         <p class="text-sm text-gray-500 font-mono mt-2">{{ t('dashboard.dropsSystemDesc') }}</p>
       </router-link>
 
+      <!-- Public Drops Card -->
+      <router-link to="/guild-drops" class="glass-panel p-6 rounded-xl hover:border-yellow-400 hover:shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all cursor-pointer group flex flex-col items-center text-center">
+        <div class="w-16 h-16 rounded-full bg-yellow-400/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <svg class="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h3 class="font-rajdhani text-xl font-bold text-gray-200 uppercase tracking-wide">{{ t('dashboard.publicDrops') }}</h3>
+        <p class="text-sm text-gray-500 font-mono mt-2">{{ t('dashboard.publicDropsDesc') }}</p>
+      </router-link>
+
       <!-- Broadcasting Card -->
       <router-link v-if="userRole === 'admin' || userRole === 'guild_admin'" to="/broadcasting" class="glass-panel p-6 rounded-xl hover:border-cyber-cyan hover:shadow-[0_0_15px_rgba(0,255,255,0.3)] transition-all cursor-pointer group flex flex-col items-center text-center">
         <div class="w-16 h-16 rounded-full bg-cyber-cyan/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

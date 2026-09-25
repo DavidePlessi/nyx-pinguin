@@ -133,9 +133,12 @@ class CandidateButton(discord.ui.View):
                 await interaction.response.send_message("You are not registered on the site. Please login to the dashboard first.", ephemeral=True)
                 return
 
+            guild_id = str(interaction.guild_id)
+            guild_config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+            strict_check = guild_config.drop_strict_primary if guild_config else True
+
             # Per "Build Primaria" controlliamo rigorosamente se l'ha salvata
-            if reason == "Primary Build":
-                guild_id = str(interaction.guild_id)
+            if reason == "Primary Build" and strict_check:
                 build = await Build.find_one(Build.user_id == discord_id, Build.guild_id == guild_id, Build.status == "primary")
                 
                 if not build:
@@ -242,8 +245,11 @@ class SkillcoreCandidateButton(discord.ui.View):
                 await interaction.response.send_message("You are not registered on the site. Please login to the dashboard first.", ephemeral=True)
                 return
 
-            if reason == "Primary Build":
-                guild_id = str(interaction.guild_id)
+            guild_id = str(interaction.guild_id)
+            guild_config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
+            strict_check = guild_config.drop_strict_primary if guild_config else True
+
+            if reason == "Primary Build" and strict_check:
                 build = await Build.find_one(Build.user_id == discord_id, Build.guild_id == guild_id, Build.status == "primary")
                 
                 if not build:

@@ -55,6 +55,8 @@
     "musicPlayerDesc": "Advanced music playback control and Piped stream.",
     "dropManagement": "Drop Management",
     "dropManagementDesc": "Advanced Drops panel and Guild History.",
+    "publicDrops": "Drops & History",
+    "publicDropsDesc": "View active drop polls and past distributions for your guilds.",
     "adminPanelTitle": "Admin Panel",
     "adminPanelDesc": "Global management and system authorizations.",
     "yourGuilds": "Your Guilds",
@@ -278,7 +280,16 @@
     "primaryBuild": "Primary Build",
     "noBuildFound": "No primary build found for this user.",
     "noBuildsFound": "No builds found with these filters.",
-    "refreshData": "Refresh Data"
+    "refreshData": "Refresh Data",
+    "settingsTitle": "Drop Settings",
+    "strictPrimaryCheck": "Strict Primary Build Check (The bot verifies that the user has the item or skillcore in their build)",
+    "saveSettings": "Save Settings",
+    "historyTitle": "History",
+    "total": "Total:",
+    "date": "Date",
+    "item": "Item",
+    "assignedTo": "Assigned To",
+    "reason": "Reason"
   },
   "translationAdmin": {
     "title": "Translation Admin",

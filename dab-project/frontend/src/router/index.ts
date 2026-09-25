@@ -64,6 +64,12 @@ const router = createRouter({
       name: 'ActivityTracking',
       component: () => import('../views/ActivityTracking.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/guild-drops',
+      name: 'PublicDrops',
+      component: () => import('../views/PublicDropsView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

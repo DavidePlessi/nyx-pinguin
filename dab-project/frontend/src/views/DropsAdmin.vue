@@ -197,7 +197,49 @@ const fetchPolls = async () => {
   }
 }
 
+const guildConfig = ref({ drop_strict_primary: true })
+
+const fetchGuildConfig = async () => {
+  if (!adminGuildId.value) return
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/drops/guilds/${adminGuildId.value}/config`, {
+      headers: { 'Authorization': `Bearer ${sessionToken.value}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      guildConfig.value.drop_strict_primary = data.drop_strict_primary ?? true
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const saveGuildConfig = async () => {
+  if (!adminGuildId.value) return
+  isLoading.value = true
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/drops/guilds/${adminGuildId.value}/config`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sessionToken.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ drop_strict_primary: guildConfig.value.drop_strict_primary })
+    })
+    if (res.ok) {
+      showAlert(t('drops.approveSuccess') || 'Impostazioni salvate!', 'SUCCESS')
+    } else {
+      showAlert(t('drops.approveError') || 'Errore nel salvataggio.', 'ERROR')
+    }
+  } catch (e) {
+    showAlert('Errore di connessione.', 'ERROR')
+  } finally {
+    isLoading.value = false
+  }
+}
+
 const onGuildChange = () => {
+  fetchGuildConfig()
   fetchPendingBuilds()
   fetchAllBuilds()
   fetchDropHistory()
@@ -655,11 +697,28 @@ onMounted(() => {
 
       <div v-if="adminGuildId">
         
-        <div class="flex justify-end mb-4">
+        <div class="flex justify-end mb-4 gap-4">
+          <button @click="saveGuildConfig" class="px-4 py-2 bg-gray-900/50 hover:bg-gray-800 text-green-400 font-orbitron text-sm rounded border border-green-500/30 transition-colors shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+            {{ t('drops.saveSettings') }}
+          </button>
           <button @click="onGuildChange" class="px-4 py-2 bg-gray-900/50 hover:bg-gray-800 text-cyber-cyan font-orbitron text-sm rounded border border-cyber-cyan/30 transition-colors flex items-center gap-2 shadow-[0_0_10px_rgba(0,255,255,0.1)]">
             <svg class="w-4 h-4" :class="{'animate-spin': isLoading}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             {{ t('drops.refreshData') }}
           </button>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="bg-gray-900/50 border border-gray-800 rounded p-6 mb-6">
+          <h3 class="font-rajdhani text-xl text-gray-200 mb-4 font-bold flex items-center gap-2">
+            {{ t('drops.settingsTitle') }}
+          </h3>
+          <div class="flex items-center gap-4">
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="guildConfig.drop_strict_primary" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyber-cyan"></div>
+              <span class="ml-3 text-sm font-mono text-gray-300">{{ t('drops.strictPrimaryCheck') }}</span>
+            </label>
+          </div>
         </div>
 
         <!-- ACTIVE POLLS -->

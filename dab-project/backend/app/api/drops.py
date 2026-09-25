@@ -23,7 +23,7 @@ async def get_guild_drops_config(guild_id: str, admin = Depends(get_current_admi
     config = await GuildConfig.find_one(GuildConfig.guild_id == guild_id)
     if not config:
         raise HTTPException(status_code=404, detail="Guild config non trovata")
-    return {"member_role_id": config.member_role_id, "drop_channel_id": config.drop_channel_id}
+    return {"member_role_id": config.member_role_id, "drop_channel_id": config.drop_channel_id, "drop_strict_primary": config.drop_strict_primary}
 
 from pydantic import BaseModel
 
@@ -39,6 +39,7 @@ class GuildConfigUpdate(BaseModel):
     weekly_activity_reminder_time: Optional[str] = None
     drop_min_events: Optional[int] = None
     drop_min_weekly_activity: Optional[int] = None
+    drop_strict_primary: Optional[bool] = None
 
 @router.post("/guilds/{guild_id}/config")
 async def set_guild_drops_config(guild_id: str, payload: GuildConfigUpdate, admin = Depends(get_current_admin)):
@@ -233,6 +234,28 @@ async def get_polls(guild_id: str, admin = Depends(get_current_guild_admin)):
             c_info.append({
                 "discord_id": c_id,
                 "username": user.username if user else "Unknown",
+                "reason": candidate_reasons.get(c_id, "Sconosciuta"),
+                "amount": candidate_amounts.get(c_id, 0)
+            })
+        p_dict = p.model_dump()
+        p_dict["candidates_info"] = c_info
+        p_dict["id"] = str(p.id)
+        results.append(p_dict)
+    return results
+
+@router.get("/guilds/{guild_id}/public_polls")
+async def get_public_polls(guild_id: str, user: DropUser = Depends(get_current_user)):
+    polls = await DropPoll.find(DropPoll.guild_id == guild_id, DropPoll.status == "open").sort("-created_at").to_list()
+    results = []
+    for p in polls:
+        c_info = []
+        candidate_reasons = getattr(p, "candidate_reasons", {})
+        candidate_amounts = getattr(p, "candidate_amounts", {})
+        for c_id in p.candidates:
+            u = await DropUser.find_one(DropUser.discord_id == c_id)
+            c_info.append({
+                "discord_id": c_id,
+                "username": u.username if u else "Unknown",
                 "reason": candidate_reasons.get(c_id, "Sconosciuta"),
                 "amount": candidate_amounts.get(c_id, 0)
             })

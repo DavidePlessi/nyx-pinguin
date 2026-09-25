@@ -28,6 +28,7 @@ class GuildConfig(Document):
     
     # Drop Eligibility Thresholds
     drop_min_events: int = 2
+    drop_strict_primary: bool = True
     drop_min_weekly_activity: int = 5500
     
     # Bot UI Language
