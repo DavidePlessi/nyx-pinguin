@@ -178,8 +178,8 @@ onMounted(() => {
                       {{ h.item_name }} <span v-if="h.amount">({{ h.amount }})</span>
                     </span>
                   </td>
-                  <td class="py-3 px-4 text-gray-300 font-mono text-sm">{{ h.username }}</td>
-                  <td class="py-3 px-4 text-gray-500 text-sm">{{ h.reason }}</td>
+                  <td class="py-3 px-4 text-gray-300 font-mono text-sm">{{ h.user?.username || h.user_id }}</td>
+                  <td class="py-3 px-4 text-gray-500 text-sm">{{ h.category }}</td>
                 </tr>
               </tbody>
             </table>
