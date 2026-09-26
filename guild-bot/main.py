@@ -101,6 +101,39 @@ async def skillcore_autocomplete(interaction: discord.Interaction, current: str)
     return []
 
 # --- Views ---
+async def update_poll_message(interaction: discord.Interaction, poll: DropPoll):
+    try:
+        msg = interaction.message
+        if not msg:
+            channel = interaction.client.get_channel(int(poll.channel_id))
+            if not channel:
+                channel = await interaction.client.fetch_channel(int(poll.channel_id))
+            msg = await channel.fetch_message(int(poll.message_id))
+            
+        if not msg or not msg.embeds: return
+        embed = msg.embeds[0]
+        embed.clear_fields()
+        
+        if poll.candidates:
+            if poll.poll_type == 'lucent':
+                embed.add_field(name="Participants", value=f"Total Candidates: {len(poll.candidates)}", inline=False)
+            else:
+                grouped = {}
+                for uid, reason in poll.candidate_reasons.items():
+                    if reason not in grouped:
+                        grouped[reason] = []
+                    grouped[reason].append(f"<@{uid}>")
+                
+                text = ""
+                for reason, users in grouped.items():
+                    text += f"**{reason}** ({len(users)}):\n" + ", ".join(users) + "\n\n"
+                
+                embed.add_field(name="Participants", value=text[:1024], inline=False)
+        
+        await msg.edit(embed=embed)
+    except Exception as e:
+        print(f"Error updating poll message: {e}")
+
 class CandidateButton(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -195,6 +228,7 @@ class CandidateButton(discord.ui.View):
                 poll.candidate_reasons = {}
             poll.candidate_reasons[discord_id] = reason
             await poll.save()
+            await update_poll_message(interaction, poll)
             await interaction.response.send_message(f"You successfully applied for: **{reason}**!", ephemeral=True)
         except Exception as e:
             import traceback
@@ -273,6 +307,7 @@ class SkillcoreCandidateButton(discord.ui.View):
                 poll.candidate_reasons = {}
             poll.candidate_reasons[discord_id] = reason
             await poll.save()
+            await update_poll_message(interaction, poll)
             await interaction.response.send_message(f"You successfully applied for: **{reason}**!", ephemeral=True)
         except Exception as e:
             import traceback
@@ -287,6 +322,10 @@ class SkillcoreCandidateButton(discord.ui.View):
     @discord.ui.button(label='Secondary Build', style=discord.ButtonStyle.gray, custom_id='candidate_skillcore_secondary_btn')
     async def candidate_secondary(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.process_candidate(interaction, "Secondary Build")
+
+    @discord.ui.button(label='Dissolve', style=discord.ButtonStyle.red, custom_id='candidate_skillcore_dissolve_btn')
+    async def candidate_dissolve(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_candidate(interaction, "Dissolve")
 
 
 
@@ -349,6 +388,7 @@ class LucentModal(discord.ui.Modal, title='Lucent Application'):
             poll.candidate_reasons[discord_id] = self.reason.value
             poll.candidate_amounts[discord_id] = amt
             await poll.save()
+            await update_poll_message(interaction, poll)
             await interaction.response.send_message(f"You successfully applied for {amt} Lucent!", ephemeral=True)
         except Exception as e:
             import traceback
@@ -624,7 +664,7 @@ async def drop_start(interaction: discord.Interaction, item: str):
     
     embed = discord.Embed(
         title="🎉 New Drop Available!",
-        description=f"Item: **{item_data['name']}**\nChoose the reason for your candidacy using the buttons below.",
+        description=f"Item: **{item_data['name']}**\nChoose the reason for your candidacy using the buttons below.\n\n🌐 [View Active Polls & Drop History](https://nyx-pinguin.fiveamtech.it/guild-drops)",
         color=discord.Color.gold()
     )
     if icon_url:
@@ -675,7 +715,7 @@ async def skillcore_start(interaction: discord.Interaction, skillcore: str):
     
     embed = discord.Embed(
         title="🎉 New Skillcore Drop Available!",
-        description=f"Skillcore: **{item_data['name']}**\nChoose the reason for your candidacy using the buttons below.",
+        description=f"Skillcore: **{item_data['name']}**\nChoose the reason for your candidacy using the buttons below.\n\n🌐 [View Active Polls & Drop History](https://nyx-pinguin.fiveamtech.it/guild-drops)",
         color=discord.Color.purple()
     )
     if icon_url:
@@ -750,7 +790,7 @@ async def lucent_start(interaction: discord.Interaction, amount: int):
     
     embed = discord.Embed(
         title="💰 Lucent Assignment!",
-        description=f"Amount available: **{amount} Lucent**\nClick the button below to enter the requested amount and reason.",
+        description=f"Amount available: **{amount} Lucent**\nClick the button below to enter the requested amount and reason.\n\n🌐 [View Active Polls & Drop History](https://nyx-pinguin.fiveamtech.it/guild-drops)",
         color=discord.Color.gold()
     )
     
